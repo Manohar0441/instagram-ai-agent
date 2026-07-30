@@ -1,4 +1,4 @@
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -39,10 +39,17 @@ class UserService:
 
         try:
             created_user = self.user_repository.create(user)
-            self.user_repository.db.commit()
+            self._commit()
             return created_user
+        except IntegrityError as exc:
+            self._rollback()
+            if self._is_unique_constraint_error(exc):
+                raise DuplicateUsernameError(
+                    f"Username '{user_data.username}' is already in use."
+                ) from exc
+            raise UserServiceError("Failed to create user.") from exc
         except SQLAlchemyError as exc:
-            self.user_repository.db.rollback()
+            self._rollback()
             raise UserServiceError("Failed to create user.") from exc
 
     def get_user(self, user_id: int) -> User:
@@ -56,3 +63,16 @@ class UserService:
     def list_users(self) -> list[User]:
         """Return all users."""
         return self.user_repository.get_all()
+
+    def _commit(self) -> None:
+        """Commit the current database transaction."""
+        self.user_repository.db.commit()
+
+    def _rollback(self) -> None:
+        """Rollback the current database transaction."""
+        self.user_repository.db.rollback()
+
+    @staticmethod
+    def _is_unique_constraint_error(exc: IntegrityError) -> bool:
+        """Return whether an integrity error came from a unique constraint."""
+        return getattr(exc.orig, "pgcode", None) == "23505"
