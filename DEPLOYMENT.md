@@ -158,7 +158,37 @@ front if you do this, since multiple containers can't all bind host port
   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
   ```
 
-## 10. Pre-launch checklist
+## 10. Running the tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+289 tests covering unit logic, services against a real database, and every
+endpoint over HTTP. Nothing external is contacted — no database server, no
+Redis, no Meta, no OpenAI — so the suite is safe to run anywhere and costs
+nothing. Run a single layer with `pytest -m unit`, `-m integration`, or
+`-m api`. See [CODE_REVIEW.md](CODE_REVIEW.md) for what is and isn't covered.
+
+## 11. Upgrading to the Milestone 9 build
+
+Two behavior changes affect a running deployment:
+
+- **All existing access tokens are rejected once**, because access tokens now
+  carry a `type` claim that older tokens lack. Signed-in users are logged out
+  and simply sign in again; tokens are 30-minute-lived, so nothing else is
+  needed. This closes a flaw where an Instagram OAuth *state* token — which
+  travels in a URL and so reaches browser history and `facebook.com` via the
+  `Referer` header — was accepted as an API credential.
+- **`GET /api/v1/users` and `POST /api/v1/users` no longer exist**, and
+  `GET /api/v1/users/{id}` now requires authentication and returns only the
+  caller's own record. The list endpoint exposed every user's email address
+  with no authentication at all; the POST duplicated `/auth/register` while
+  bypassing its brute-force rate limit. Any client calling those endpoints
+  must move to `/auth/register` and `/auth/me`.
+
+## 12. Pre-launch checklist
 
 - [ ] `ENVIRONMENT=production`, `DEBUG=false`
 - [ ] Real `JWT_SECRET_KEY` (≥32 chars, generated fresh, not the dev value)

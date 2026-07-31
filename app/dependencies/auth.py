@@ -30,10 +30,14 @@ def get_current_user(
     try:
         payload = decode_access_token(token)
         token_data = TokenPayload(**payload)
+        # int() is inside the try deliberately: a token with a well-formed
+        # but non-numeric "sub" is an invalid credential (401), not an
+        # internal error (500).
+        user_id = int(token_data.sub)
     except (jwt.PyJWTError, ValueError) as exc:
         raise _credentials_exception() from exc
 
-    user = user_repository.get_by_id(int(token_data.sub))
+    user = user_repository.get_by_id(user_id)
     if user is None:
         raise _credentials_exception()
 

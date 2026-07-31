@@ -75,10 +75,6 @@ class UserService:
 
         return user
 
-    def list_users(self) -> list[User]:
-        """Return all users."""
-        return self.user_repository.get_all()
-
     def _commit(self) -> None:
         """Commit the current database transaction."""
         self.user_repository.db.commit()

@@ -2,19 +2,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
+from app.dependencies.auth import get_current_user
 from app.dependencies.services import get_user_service
-from app.schemas.user import UserCreate, UserResponse
-from app.services.user_service import (
-    DuplicateEmailError,
-    DuplicateUsernameError,
-    UserNotFoundError,
-    UserService,
-    UserServiceError,
-)
+from app.models.user import User
+from app.schemas.user import UserResponse
+from app.services.user_service import UserNotFoundError, UserService
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 UserServiceDependency = Annotated[UserService, Depends(get_user_service)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 PositiveUserId = Annotated[
     int,
     Path(
@@ -23,65 +20,16 @@ PositiveUserId = Annotated[
     ),
 ]
 
-
-@router.post(
-    "",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create user",
-    description="Create a user account record.",
-    operation_id="createUser",
-    responses={
-        status.HTTP_201_CREATED: {
-            "description": "User created successfully."
-        },
-        status.HTTP_409_CONFLICT: {
-            "description": "A user with the requested username or email already exists."
-        },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {
-            "description": "The user could not be created."
-        },
-    },
-)
-def create_user(
-    user_data: UserCreate,
-    user_service: UserServiceDependency,
-) -> UserResponse:
-    """Create a user through the service layer."""
-    try:
-        user = user_service.create_user(user_data)
-        return UserResponse.model_validate(user)
-    except (DuplicateUsernameError, DuplicateEmailError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
-    except UserServiceError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
-        ) from exc
-
-
-@router.get(
-    "",
-    response_model=list[UserResponse],
-    status_code=status.HTTP_200_OK,
-    summary="List users",
-    description="Return all user account records.",
-    operation_id="listUsers",
-    responses={
-        status.HTTP_200_OK: {
-            "description": "Users returned successfully."
-        },
-    },
-)
-def list_users(
-    user_service: UserServiceDependency,
-) -> list[UserResponse]:
-    """List users through the service layer."""
-    users = user_service.list_users()
-    return [UserResponse.model_validate(user) for user in users]
+# Two endpoints previously lived here and were removed as security defects
+# (see the Milestone 9 review):
+#
+#   POST /users  - an unauthenticated duplicate of POST /auth/register that
+#                  also bypassed that endpoint's strict brute-force rate
+#                  limit. Registration now has exactly one entry point.
+#   GET  /users  - returned every user record, including email addresses,
+#                  with no authentication at all. There is no role system
+#                  here that could legitimately gate a list-all-users
+#                  operation, and no product feature needs one.
 
 
 @router.get(
@@ -89,22 +37,34 @@ def list_users(
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Get user",
-    description="Return a single user account record by ID.",
+    description="Return a user account record by ID. Users may only retrieve their own record.",
     operation_id="getUser",
     responses={
         status.HTTP_200_OK: {
             "description": "User returned successfully."
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Missing, invalid, or expired access token."
+        },
         status.HTTP_404_NOT_FOUND: {
-            "description": "No user exists with the requested ID."
+            "description": "No such user exists, or it is not the requesting user's record."
         },
     },
 )
 def get_user(
     user_id: PositiveUserId,
+    current_user: CurrentUser,
     user_service: UserServiceDependency,
 ) -> UserResponse:
-    """Get a user through the service layer."""
+    """Return a user record, provided it belongs to the requesting user."""
+    # Another user's ID returns 404 rather than 403: a 403 would confirm
+    # that the ID exists, turning this into a user-enumeration oracle.
+    if user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with ID {user_id} was not found.",
+        )
+
     try:
         user = user_service.get_user(user_id)
         return UserResponse.model_validate(user)

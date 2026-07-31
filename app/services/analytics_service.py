@@ -76,6 +76,15 @@ class AnalyticsService:
     ) -> AccountAnalyticsResponse:
         """Return account-level analytics for the given lookback window."""
         account = self._get_connected_account(user_id)
+        return self._account_analytics(account, days)
+
+    def _account_analytics(
+        self,
+        account: InstagramAccount,
+        days: int,
+        media_analytics: list[MediaAnalyticsResponse] | None = None,
+    ) -> AccountAnalyticsResponse:
+        """Build account analytics, reusing already-computed media analytics if given."""
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         day_snapshots = self.account_insight_repository.list_by_account_id(
@@ -85,8 +94,10 @@ class AnalyticsService:
         metrics = latest_day.metrics if latest_day else {}
 
         follower_growth = self._compute_follower_growth(account.id, since)
+        if media_analytics is None:
+            media_analytics = self._compute_media_analytics(account.id)
         engagement_rate = average_or_none(
-            [item.engagement_rate for item in self._compute_media_analytics(account.id) if item.engagement_rate is not None]
+            [item.engagement_rate for item in media_analytics if item.engagement_rate is not None]
         )
 
         return AccountAnalyticsResponse(
@@ -124,9 +135,21 @@ class AnalyticsService:
     ) -> TopContentResponse:
         """Return content ranked by a chosen metric, best or worst first."""
         account = self._get_connected_account(user_id)
-        all_media_analytics = self._compute_media_analytics(account.id)
+        return self._top_content(account, limit, metric, order)
+
+    def _top_content(
+        self,
+        account: InstagramAccount,
+        limit: int,
+        metric: str,
+        order: RankOrder,
+        media_analytics: list[MediaAnalyticsResponse] | None = None,
+    ) -> TopContentResponse:
+        """Rank content, reusing already-computed media analytics if given."""
+        if media_analytics is None:
+            media_analytics = self._compute_media_analytics(account.id)
         key_func = _METRIC_EXTRACTORS.get(metric, _METRIC_EXTRACTORS["engagement_rate"])
-        ranked = rank_content(all_media_analytics, key_func, order, limit)
+        ranked = rank_content(media_analytics, key_func, order, limit)
         return TopContentResponse(metric=metric, order=order, items=ranked)
 
     def get_trends(
@@ -137,15 +160,43 @@ class AnalyticsService:
     ) -> TrendsResponse:
         """Return historical performance bucketed by day, week, or month."""
         account = self._get_connected_account(user_id)
+        return self._trends(account, granularity, days)
+
+    def _trends(
+        self,
+        account: InstagramAccount,
+        granularity: Granularity,
+        days: int,
+        media_analytics: list[MediaAnalyticsResponse] | None = None,
+    ) -> TrendsResponse:
+        """Build trend points, reusing already-computed media analytics if given."""
         since = datetime.now(timezone.utc) - timedelta(days=days)
-        points = self._build_trend_points(account.id, since, granularity)
+        if media_analytics is None:
+            media_analytics = self._compute_media_analytics(account.id)
+        points = self._build_trend_points(account.id, since, granularity, media_analytics)
         return TrendsResponse(granularity=granularity, points=points)
 
     def get_dashboard(self, user_id: int) -> DashboardResponse:
-        """Return a summarized dashboard combining account, content, and trend data."""
-        account_analytics = self.get_account_analytics(user_id)
-        top_content = self.get_top_content(user_id, limit=DEFAULT_TOP_CONTENT_LIMIT)
-        trends = self.get_trends(user_id, granularity="daily", days=DEFAULT_DASHBOARD_TREND_DAYS)
+        """Return a summarized dashboard combining account, content, and trend data.
+
+        Resolves the account and computes media analytics exactly once, then
+        shares both across all three sections. Calling the public
+        get_account_analytics/get_top_content/get_trends here instead would
+        re-run the same account lookup and media+insight fetch three times
+        over.
+        """
+        account = self._get_connected_account(user_id)
+        media_analytics = self._compute_media_analytics(account.id)
+
+        account_analytics = self._account_analytics(
+            account, DEFAULT_LOOKBACK_DAYS, media_analytics
+        )
+        top_content = self._top_content(
+            account, DEFAULT_TOP_CONTENT_LIMIT, "engagement_rate", "top", media_analytics
+        )
+        trends = self._trends(
+            account, "daily", DEFAULT_DASHBOARD_TREND_DAYS, media_analytics
+        )
         return DashboardResponse(
             account=account_analytics,
             top_content=top_content.items,
@@ -216,7 +267,11 @@ class AnalyticsService:
         )
 
     def _build_trend_points(
-        self, instagram_account_id: int, since: datetime, granularity: Granularity
+        self,
+        instagram_account_id: int,
+        since: datetime,
+        granularity: Granularity,
+        media_analytics: list[MediaAnalyticsResponse],
     ) -> list[TrendPoint]:
         day_snapshots = self.account_insight_repository.list_by_account_id(
             instagram_account_id, period=ACCOUNT_INSIGHTS_PERIOD, since=since
@@ -224,14 +279,14 @@ class AnalyticsService:
         profile_snapshots = self.account_insight_repository.list_by_account_id(
             instagram_account_id, period=PROFILE_SNAPSHOT_PERIOD, since=since
         )
-        media_list = [
-            media
-            for media in self.instagram_media_repository.list_by_account_id(instagram_account_id)
-            if media.posted_at is not None and as_aware_utc(media.posted_at) >= since
+        # Reuses the already-computed analytics rather than re-reading media
+        # and insights from the database; engagement_rate on each item is
+        # derived from exactly the same inputs this used to recompute.
+        media_in_window = [
+            item
+            for item in media_analytics
+            if item.posted_at is not None and as_aware_utc(item.posted_at) >= since
         ]
-        insights_by_media_id = self.media_insight_repository.get_latest_by_media_ids(
-            [media.id for media in media_list]
-        )
 
         buckets: dict = defaultdict(
             lambda: {
@@ -261,15 +316,11 @@ class AnalyticsService:
             if followers is not None:
                 bucket["followers_count"] = followers
 
-        for media in media_list:
-            bucket = buckets[bucket_start(media.posted_at, granularity)]
+        for item in media_in_window:
+            bucket = buckets[bucket_start(item.posted_at, granularity)]
             bucket["posts_count"] += 1
-            insight = insights_by_media_id.get(media.id)
-            if insight is not None:
-                engagements = self._total_engagements(media, insight)
-                rate = calculate_engagement_rate(engagements, reach=insight.metrics.get("reach"))
-                if rate is not None:
-                    bucket["engagement_rates"].append(rate)
+            if item.engagement_rate is not None:
+                bucket["engagement_rates"].append(item.engagement_rate)
 
         return [
             TrendPoint(
