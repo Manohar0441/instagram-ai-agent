@@ -14,6 +14,7 @@ from app.repositories.instagram_account_repository import InstagramAccountReposi
 from app.repositories.instagram_media_repository import InstagramMediaRepository
 from app.repositories.media_insight_repository import MediaInsightRepository
 from app.repositories.user_repository import UserRepository
+from app.services.ai_service import AIService
 from app.services.analytics_service import AnalyticsService
 from app.services.auth_service import AuthService
 from app.services.instagram_service import InstagramService
@@ -85,3 +86,10 @@ def get_analytics_service(
         media_insight_repository,
         account_insight_repository,
     )
+
+
+def get_ai_service(
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+) -> AIService:
+    """Provide an AI service with its analytics service dependency."""
+    return AIService(analytics_service)
