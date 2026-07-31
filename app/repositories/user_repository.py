@@ -16,3 +16,8 @@ class UserRepository(BaseRepository[User]):
         """Return a user by username, or None when no match exists."""
         statement = select(User).where(User.username == username)
         return self.db.scalar(statement)
+
+    def get_by_email(self, email: str) -> User | None:
+        """Return a user by email, or None when no match exists."""
+        statement = select(User).where(User.email == email)
+        return self.db.scalar(statement)

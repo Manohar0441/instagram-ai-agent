@@ -7,7 +7,13 @@ from app.core.settings import settings
 from app.database.base import Base
 
 # Import all models so they are registered with Base.metadata
-from app.models.user import User
+from app.models import (  # noqa: F401
+    AccountInsight,
+    InstagramAccount,
+    InstagramMedia,
+    MediaInsight,
+    User,
+)
 
 # Alembic Config object
 config = context.config

@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate
+from app.utils.security import hash_password
 
 
 class UserServiceError(Exception):
@@ -11,6 +12,10 @@ class UserServiceError(Exception):
 
 class DuplicateUsernameError(UserServiceError):
     """Raised when attempting to create a user with an existing username."""
+
+
+class DuplicateEmailError(UserServiceError):
+    """Raised when attempting to create a user with an existing email."""
 
 
 class UserNotFoundError(UserServiceError):
@@ -25,16 +30,22 @@ class UserService:
         self.user_repository = user_repository
 
     def create_user(self, user_data: UserCreate) -> User:
-        """Create a user after enforcing username uniqueness."""
-        existing_user = self.user_repository.get_by_username(user_data.username)
-        if existing_user is not None:
+        """Create a user after enforcing username and email uniqueness."""
+        if self.user_repository.get_by_username(user_data.username) is not None:
             raise DuplicateUsernameError(
                 f"Username '{user_data.username}' is already in use."
+            )
+
+        if self.user_repository.get_by_email(user_data.email) is not None:
+            raise DuplicateEmailError(
+                f"Email '{user_data.email}' is already in use."
             )
 
         user = User(
             username=user_data.username,
             full_name=user_data.full_name,
+            email=user_data.email,
+            hashed_password=hash_password(user_data.password),
         )
 
         try:
@@ -44,6 +55,10 @@ class UserService:
         except IntegrityError as exc:
             self._rollback()
             if self._is_unique_constraint_error(exc):
+                if self._violates_email_constraint(exc):
+                    raise DuplicateEmailError(
+                        f"Email '{user_data.email}' is already in use."
+                    ) from exc
                 raise DuplicateUsernameError(
                     f"Username '{user_data.username}' is already in use."
                 ) from exc
@@ -76,3 +91,10 @@ class UserService:
     def _is_unique_constraint_error(exc: IntegrityError) -> bool:
         """Return whether an integrity error came from a unique constraint."""
         return getattr(exc.orig, "pgcode", None) == "23505"
+
+    @staticmethod
+    def _violates_email_constraint(exc: IntegrityError) -> bool:
+        """Return whether a unique violation was raised by the email constraint."""
+        diag = getattr(exc.orig, "diag", None)
+        constraint_name = getattr(diag, "constraint_name", None) or ""
+        return "email" in constraint_name

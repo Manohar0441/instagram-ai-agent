@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 from app.dependencies.services import get_user_service
 from app.schemas.user import UserCreate, UserResponse
 from app.services.user_service import (
+    DuplicateEmailError,
     DuplicateUsernameError,
     UserNotFoundError,
     UserService,
@@ -35,7 +36,7 @@ PositiveUserId = Annotated[
             "description": "User created successfully."
         },
         status.HTTP_409_CONFLICT: {
-            "description": "A user with the requested username already exists."
+            "description": "A user with the requested username or email already exists."
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "The user could not be created."
@@ -50,7 +51,7 @@ def create_user(
     try:
         user = user_service.create_user(user_data)
         return UserResponse.model_validate(user)
-    except DuplicateUsernameError as exc:
+    except (DuplicateUsernameError, DuplicateEmailError) as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
