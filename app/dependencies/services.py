@@ -17,7 +17,10 @@ from app.repositories.user_repository import UserRepository
 from app.services.ai_service import AIService
 from app.services.analytics_service import AnalyticsService
 from app.services.auth_service import AuthService
+from app.services.insights_service import InsightsService
 from app.services.instagram_service import InstagramService
+from app.services.recommendation_service import RecommendationService
+from app.services.report_service import ReportService
 from app.services.user_service import UserService
 
 
@@ -93,3 +96,24 @@ def get_ai_service(
 ) -> AIService:
     """Provide an AI service with its analytics service dependency."""
     return AIService(analytics_service)
+
+
+def get_insights_service(
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+) -> InsightsService:
+    """Provide an insights service with its analytics service dependency."""
+    return InsightsService(analytics_service)
+
+
+def get_recommendation_service(
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+) -> RecommendationService:
+    """Provide a recommendation service with its analytics service dependency."""
+    return RecommendationService(analytics_service)
+
+
+def get_report_service(
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+) -> ReportService:
+    """Provide a report service with its analytics service dependency."""
+    return ReportService(analytics_service)

@@ -1,6 +1,6 @@
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal, TypeVar
 
 T = TypeVar("T")
@@ -40,6 +40,11 @@ def calculate_growth(previous: int | None, current: int | None) -> Growth | None
     absolute = current - previous
     percentage = round((absolute / previous) * 100, 2) if previous else None
     return Growth(absolute=absolute, percentage=percentage)
+
+
+def as_aware_utc(moment: datetime) -> datetime:
+    """Treat a naive datetime as UTC (some backends drop tzinfo on round-trip)."""
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=timezone.utc)
 
 
 def bucket_start(moment: datetime, granularity: Granularity) -> date:

@@ -1,24 +1,21 @@
 import openai
-from langchain_openai import ChatOpenAI
 
 from app.core.settings import settings
 from app.integrations.ai_agent import build_agent_graph, run_agent
 from app.schemas.ai import AIHealthResponse, ChatResponse
+from app.services.ai_generation import (
+    AIGenerationError,
+    AINotConfiguredError,
+    AIProviderError,
+    build_llm,
+    ensure_configured,
+)
 from app.services.ai_prompts import SYSTEM_PROMPT
 from app.services.ai_tools import build_tools
 from app.services.analytics_service import AnalyticsService
 
-
-class AIServiceError(Exception):
-    """Base exception for AI agent failures."""
-
-
-class AINotConfiguredError(AIServiceError):
-    """Raised when the OpenAI API key is not configured."""
-
-
-class AIProviderError(AIServiceError):
-    """Raised when the OpenAI API call fails."""
+# Re-exported for backward compatibility - previously defined here.
+__all__ = ["AIGenerationError", "AINotConfiguredError", "AIProviderError", "AIService"]
 
 
 class AIService:
@@ -36,10 +33,10 @@ class AIService:
 
     def chat(self, user_id: int, message: str) -> ChatResponse:
         """Answer a natural language analytics question for the given user."""
-        self._ensure_configured()
+        ensure_configured()
 
         tools = build_tools(self.analytics_service, user_id)
-        graph = build_agent_graph(self._build_llm(), tools)
+        graph = build_agent_graph(build_llm(), tools)
 
         try:
             response_text, tools_used = run_agent(
@@ -62,14 +59,3 @@ class AIService:
             openai_configured=configured,
             details=None if configured else "OPENAI_API_KEY is not configured.",
         )
-
-    def _build_llm(self) -> ChatOpenAI:
-        return ChatOpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            model=settings.OPENAI_MODEL,
-            temperature=settings.OPENAI_TEMPERATURE,
-        )
-
-    def _ensure_configured(self) -> None:
-        if not settings.OPENAI_API_KEY:
-            raise AINotConfiguredError("AI service is not configured. Set OPENAI_API_KEY.")

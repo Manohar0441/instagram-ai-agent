@@ -1,9 +1,14 @@
+from typing import TypeVar
+
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool
 from langgraph.graph import MessagesState, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
+from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
 
 
 def build_agent_graph(llm: BaseChatModel, tools: list[BaseTool]) -> CompiledStateGraph:
@@ -57,3 +62,23 @@ def run_agent(
     final_content = messages[-1].content
     response_text = final_content if isinstance(final_content, str) else str(final_content)
     return response_text, tools_used
+
+
+def generate_structured_response(
+    llm: BaseChatModel,
+    system_prompt: str,
+    user_prompt: str,
+    output_schema: type[T],
+) -> T:
+    """Ask the LLM to produce a single response matching a Pydantic schema.
+
+    Used for one-shot generation tasks where the required data is already
+    known and gathered upfront (unlike the tool-calling agent above, which
+    is for open-ended questions where the model must decide what to fetch).
+    The model's native structured-output/JSON-schema mode enforces the
+    shape, so the result is guaranteed to validate against output_schema.
+    """
+    structured_llm = llm.with_structured_output(output_schema)
+    return structured_llm.invoke(
+        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+    )

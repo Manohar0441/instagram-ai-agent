@@ -23,6 +23,7 @@ from app.services.instagram_service import InstagramAccountNotConnectedError
 from app.utils.analytics_calculations import (
     Granularity,
     RankOrder,
+    as_aware_utc,
     average_or_none,
     bucket_start,
     calculate_engagement_rate,
@@ -226,7 +227,7 @@ class AnalyticsService:
         media_list = [
             media
             for media in self.instagram_media_repository.list_by_account_id(instagram_account_id)
-            if media.posted_at is not None and self._as_aware(media.posted_at) >= since
+            if media.posted_at is not None and as_aware_utc(media.posted_at) >= since
         ]
         insights_by_media_id = self.media_insight_repository.get_latest_by_media_ids(
             [media.id for media in media_list]
@@ -282,11 +283,6 @@ class AnalyticsService:
             )
             for period_start, values in sorted(buckets.items())
         ]
-
-    @staticmethod
-    def _as_aware(moment: datetime) -> datetime:
-        """Treat a naive datetime as UTC (some backends drop tzinfo on round-trip)."""
-        return moment if moment.tzinfo is not None else moment.replace(tzinfo=timezone.utc)
 
     @staticmethod
     def _total_engagements(media: InstagramMedia, insight: MediaInsight | None) -> int:
