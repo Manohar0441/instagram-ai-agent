@@ -3,12 +3,14 @@ from typing import Any
 
 import openai
 
+from app.core.settings import settings
 from app.integrations.ai_agent import generate_structured_response
 from app.schemas.analytics import MediaAnalyticsResponse
 from app.schemas.insights import Insight, InsightNarratives, PerformanceInsightsResponse
 from app.services.ai_generation import AIProviderError, build_llm, ensure_configured
 from app.services.analytics_service import AnalyticsService
 from app.services.insight_prompts import INSIGHTS_SYSTEM_PROMPT, build_insights_user_prompt
+from app.utils.cache import get_or_generate
 from app.utils.insight_calculations import posting_time_breakdown
 
 DEFAULT_INSIGHTS_LOOKBACK_DAYS = 30
@@ -31,7 +33,20 @@ class InsightsService:
     def get_insights(
         self, user_id: int, days: int = DEFAULT_INSIGHTS_LOOKBACK_DAYS
     ) -> PerformanceInsightsResponse:
-        """Return five grounded performance insights for the given user."""
+        """Return five grounded performance insights for the given user.
+
+        Results are cached for CACHE_TTL_SECONDS, since each call costs one
+        LLM request - repeated calls within the window skip generation.
+        """
+        cache_key = f"insights:{user_id}:{days}"
+        return get_or_generate(
+            cache_key,
+            PerformanceInsightsResponse,
+            settings.CACHE_TTL_SECONDS,
+            lambda: self._generate_insights(user_id, days),
+        )
+
+    def _generate_insights(self, user_id: int, days: int) -> PerformanceInsightsResponse:
         ensure_configured()
 
         account = self.analytics_service.get_account_analytics(user_id, days=days)

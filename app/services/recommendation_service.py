@@ -2,12 +2,14 @@ from datetime import datetime, timedelta, timezone
 
 import openai
 
+from app.core.settings import settings
 from app.integrations.ai_agent import generate_structured_response
 from app.schemas.insights import RecommendationNarratives, RecommendationsResponse
 from app.services.ai_generation import AIProviderError, build_llm, ensure_configured
 from app.services.analytics_service import AnalyticsService
 from app.services.insight_prompts import RECOMMENDATIONS_SYSTEM_PROMPT, build_recommendations_user_prompt
 from app.utils.analytics_calculations import as_aware_utc
+from app.utils.cache import get_or_generate
 from app.utils.insight_calculations import content_format_breakdown, posting_frequency, posting_time_breakdown
 
 DEFAULT_RECOMMENDATIONS_LOOKBACK_DAYS = 30
@@ -30,7 +32,20 @@ class RecommendationService:
     def get_recommendations(
         self, user_id: int, days: int = DEFAULT_RECOMMENDATIONS_LOOKBACK_DAYS
     ) -> RecommendationsResponse:
-        """Return grounded, personalized recommendations for the given user."""
+        """Return grounded, personalized recommendations for the given user.
+
+        Results are cached for CACHE_TTL_SECONDS, since each call costs one
+        LLM request - repeated calls within the window skip generation.
+        """
+        cache_key = f"recommendations:{user_id}:{days}"
+        return get_or_generate(
+            cache_key,
+            RecommendationsResponse,
+            settings.CACHE_TTL_SECONDS,
+            lambda: self._generate_recommendations(user_id, days),
+        )
+
+    def _generate_recommendations(self, user_id: int, days: int) -> RecommendationsResponse:
         ensure_configured()
 
         media = self.analytics_service.get_media_analytics(user_id, limit=MEDIA_SAMPLE_LIMIT)

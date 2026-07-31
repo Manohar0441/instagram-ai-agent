@@ -1,8 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
+from app.core.rate_limit import limiter
+from app.core.settings import settings
 from app.dependencies.auth import get_current_user
 from app.dependencies.services import get_auth_service, get_user_service
 from app.models.user import User
@@ -42,7 +44,9 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
         },
     },
 )
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 def register(
+    request: Request,
     user_data: UserCreate,
     user_service: UserServiceDependency,
 ) -> UserResponse:
@@ -78,7 +82,9 @@ def register(
         },
     },
 )
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 def login(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     auth_service: AuthServiceDependency,
 ) -> Token:

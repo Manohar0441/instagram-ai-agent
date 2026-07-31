@@ -1,4 +1,5 @@
 from fastapi import Depends
+from rq import Queue
 
 from app.core.settings import settings
 from app.dependencies.repositories import (
@@ -9,6 +10,7 @@ from app.dependencies.repositories import (
     get_user_repository,
 )
 from app.integrations.instagram_client import InstagramGraphClient
+from app.integrations.task_queue import get_queue
 from app.repositories.account_insight_repository import AccountInsightRepository
 from app.repositories.instagram_account_repository import InstagramAccountRepository
 from app.repositories.instagram_media_repository import InstagramMediaRepository
@@ -19,6 +21,7 @@ from app.services.analytics_service import AnalyticsService
 from app.services.auth_service import AuthService
 from app.services.insights_service import InsightsService
 from app.services.instagram_service import InstagramService
+from app.services.job_service import JobService
 from app.services.recommendation_service import RecommendationService
 from app.services.report_service import ReportService
 from app.services.user_service import UserService
@@ -117,3 +120,10 @@ def get_report_service(
 ) -> ReportService:
     """Provide a report service with its analytics service dependency."""
     return ReportService(analytics_service)
+
+
+def get_job_service(
+    queue: Queue = Depends(get_queue),
+) -> JobService:
+    """Provide a job service with its task queue dependency."""
+    return JobService(queue)

@@ -1,7 +1,9 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.core.rate_limit import limiter
+from app.core.settings import settings
 from app.dependencies.auth import get_current_user
 from app.dependencies.services import (
     get_insights_service,
@@ -53,7 +55,9 @@ def _handle_error(exc: Exception) -> HTTPException:
     operation_id="getPerformanceInsights",
     responses={status.HTTP_200_OK: {"description": "Insights returned successfully."}, **_COMMON_RESPONSES},
 )
+@limiter.limit(settings.RATE_LIMIT_STRICT)
 def get_insights(
+    request: Request,
     current_user: CurrentUser,
     insights_service: InsightsServiceDependency,
 ) -> PerformanceInsightsResponse:
@@ -73,7 +77,9 @@ def get_insights(
     operation_id="getRecommendations",
     responses={status.HTTP_200_OK: {"description": "Recommendations returned successfully."}, **_COMMON_RESPONSES},
 )
+@limiter.limit(settings.RATE_LIMIT_STRICT)
 def get_recommendations(
+    request: Request,
     current_user: CurrentUser,
     recommendation_service: RecommendationServiceDependency,
 ) -> RecommendationsResponse:
@@ -104,7 +110,9 @@ def _generate_report(
     operation_id="getWeeklyReport",
     responses={status.HTTP_200_OK: {"description": "Weekly report returned successfully."}, **_COMMON_RESPONSES},
 )
+@limiter.limit(settings.RATE_LIMIT_STRICT)
 def get_weekly_report(
+    request: Request,
     current_user: CurrentUser,
     report_service: ReportServiceDependency,
 ) -> PerformanceReportResponse:
@@ -121,7 +129,9 @@ def get_weekly_report(
     operation_id="getMonthlyReport",
     responses={status.HTTP_200_OK: {"description": "Monthly report returned successfully."}, **_COMMON_RESPONSES},
 )
+@limiter.limit(settings.RATE_LIMIT_STRICT)
 def get_monthly_report(
+    request: Request,
     current_user: CurrentUser,
     report_service: ReportServiceDependency,
 ) -> PerformanceReportResponse:

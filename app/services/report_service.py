@@ -3,11 +3,13 @@ from typing import Literal
 
 import openai
 
+from app.core.settings import settings
 from app.integrations.ai_agent import generate_structured_response
 from app.schemas.insights import PerformanceReportResponse, ReportNarratives
 from app.services.ai_generation import AIProviderError, build_llm, ensure_configured
 from app.services.analytics_service import AnalyticsService
 from app.services.insight_prompts import REPORT_SYSTEM_PROMPT, build_report_user_prompt
+from app.utils.cache import get_or_generate
 
 REPORT_CONTENT_LIMIT = 3
 
@@ -32,7 +34,20 @@ class ReportService:
         self.analytics_service = analytics_service
 
     def generate_report(self, user_id: int, period: Literal["weekly", "monthly"]) -> PerformanceReportResponse:
-        """Return an AI-generated performance report for the given period."""
+        """Return an AI-generated performance report for the given period.
+
+        Results are cached for CACHE_TTL_SECONDS, since each call costs one
+        LLM request - repeated calls within the window skip generation.
+        """
+        cache_key = f"report:{user_id}:{period}"
+        return get_or_generate(
+            cache_key,
+            PerformanceReportResponse,
+            settings.CACHE_TTL_SECONDS,
+            lambda: self._generate_report(user_id, period),
+        )
+
+    def _generate_report(self, user_id: int, period: Literal["weekly", "monthly"]) -> PerformanceReportResponse:
         ensure_configured()
         config = _PERIOD_CONFIG[period]
         days = config["days"]
