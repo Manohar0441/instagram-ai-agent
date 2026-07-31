@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -30,6 +30,8 @@ class InstagramMedia(Base):
     caption: Mapped[str | None] = mapped_column(Text, nullable=True)
     media_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     permalink: Mapped[str | None] = mapped_column(Text, nullable=True)
+    like_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    comments_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     posted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

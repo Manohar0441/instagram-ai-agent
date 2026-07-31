@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -38,3 +40,23 @@ class AccountInsightRepository(BaseRepository[AccountInsight]):
             .limit(1)
         )
         return self.db.scalar(statement)
+
+    def list_by_account_id(
+        self,
+        instagram_account_id: int,
+        period: str | None = None,
+        since: datetime | None = None,
+    ) -> list[AccountInsight]:
+        """Return insight snapshots for an account, oldest first."""
+        conditions = [AccountInsight.instagram_account_id == instagram_account_id]
+        if period is not None:
+            conditions.append(AccountInsight.period == period)
+        if since is not None:
+            conditions.append(AccountInsight.fetched_at >= since)
+
+        statement = (
+            select(AccountInsight)
+            .where(*conditions)
+            .order_by(AccountInsight.fetched_at.asc())
+        )
+        return list(self.db.scalars(statement).all())

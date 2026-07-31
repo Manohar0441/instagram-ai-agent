@@ -22,6 +22,11 @@ T = TypeVar("T")
 MAX_MEDIA_INSIGHTS_PER_REQUEST = 25
 DEFAULT_ACCOUNT_INSIGHTS_PERIOD = "day"
 
+# A distinct AccountInsight "period" value used to snapshot profile fields
+# (followers_count, media_count) over time, so the Analytics Engine can
+# compute follower growth. Not a real Graph API insights period.
+PROFILE_SNAPSHOT_PERIOD = "profile"
+
 
 class InstagramServiceError(Exception):
     """Base exception for Instagram integration failures."""
@@ -132,6 +137,7 @@ class InstagramService:
         )
 
         created_account = self.instagram_account_repository.create(account)
+        self._snapshot_profile_counts(created_account)
         self._commit()
         return created_account
 
@@ -153,6 +159,7 @@ class InstagramService:
         account.followers_count = profile.get("followers_count")
         account.media_count = profile.get("media_count")
 
+        self._snapshot_profile_counts(account)
         self._commit()
         return account
 
@@ -215,6 +222,17 @@ class InstagramService:
         self.instagram_account_repository.delete(account.id)
         self._commit()
 
+    def _snapshot_profile_counts(self, account: InstagramAccount) -> None:
+        """Record a point-in-time snapshot of followers/media counts for trend analysis."""
+        self.account_insight_repository.create_snapshot(
+            instagram_account_id=account.id,
+            period=PROFILE_SNAPSHOT_PERIOD,
+            metrics={
+                "followers_count": account.followers_count,
+                "media_count": account.media_count,
+            },
+        )
+
     def _get_connected_account(self, user_id: int) -> InstagramAccount:
         account = self.instagram_account_repository.get_by_user_id(user_id)
         if account is None:
@@ -257,6 +275,8 @@ class InstagramService:
             existing.media_url = item.get("media_url")
             existing.permalink = item.get("permalink")
             existing.posted_at = posted_at
+            existing.like_count = item.get("like_count")
+            existing.comments_count = item.get("comments_count")
             return existing
 
         return self.instagram_media_repository.create(
@@ -268,6 +288,8 @@ class InstagramService:
                 media_url=item.get("media_url"),
                 permalink=item.get("permalink"),
                 posted_at=posted_at,
+                like_count=item.get("like_count"),
+                comments_count=item.get("comments_count"),
             )
         )
 

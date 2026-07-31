@@ -11,15 +11,22 @@ GRAPH_API_BASE_URL = "https://graph.facebook.com"
 OAUTH_SCOPES = "instagram_basic,instagram_manage_insights,pages_show_list,pages_read_engagement"
 
 PROFILE_FIELDS = "id,username,name,account_type,profile_picture_url,followers_count,media_count,biography"
-MEDIA_FIELDS = "id,caption,media_type,media_url,permalink,timestamp"
+# like_count/comments_count are plain media fields (not insight metrics), so
+# they're requested here rather than via the /insights edge.
+MEDIA_FIELDS = "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count"
 
 # Graph API insight metric names as documented for API version v21.x. Meta
 # periodically renames/deprecates metrics between API versions; if calls
 # start failing with an "Invalid metric" error, these lists are the first
 # place to check against the pinned INSTAGRAM_GRAPH_API_VERSION.
-ACCOUNT_INSIGHT_METRICS = "impressions,reach,profile_views"
+ACCOUNT_INSIGHT_METRICS = "impressions,reach,profile_views,accounts_engaged"
 IMAGE_INSIGHT_METRICS = "impressions,reach,engagement,saved"
 VIDEO_INSIGHT_METRICS = "plays,reach,saved,shares"
+
+# Reels watch-time metrics are even less stable across API versions than the
+# core set above, so they're fetched as a separate best-effort call - see
+# _get_watch_time_metrics.
+VIDEO_WATCH_TIME_METRICS = "ig_reels_avg_watch_time"
 
 REQUEST_TIMEOUT_SECONDS = 15.0
 
@@ -124,11 +131,33 @@ class InstagramGraphClient:
         access_token: str,
     ) -> dict[str, Any]:
         """Fetch insight metrics for a single media item."""
-        metrics = VIDEO_INSIGHT_METRICS if media_type in ("VIDEO", "REELS") else IMAGE_INSIGHT_METRICS
+        is_video = media_type in ("VIDEO", "REELS")
+        metrics = VIDEO_INSIGHT_METRICS if is_video else IMAGE_INSIGHT_METRICS
         response = self._get(
             f"{GRAPH_API_BASE_URL}/{self.api_version}/{media_id}/insights",
             params={"metric": metrics, "access_token": access_token},
         )
+        result = self._flatten_insight_values(response.get("data", []))
+
+        if is_video:
+            result.update(self._get_watch_time_metrics(media_id, access_token))
+
+        return result
+
+    def _get_watch_time_metrics(self, media_id: str, access_token: str) -> dict[str, Any]:
+        """Best-effort fetch for Reels watch-time metrics.
+
+        These metric names are less stable across Graph API versions than
+        the core set, so a failure here is swallowed rather than propagated
+        - the caller simply won't have watch-time data for this item.
+        """
+        try:
+            response = self._get(
+                f"{GRAPH_API_BASE_URL}/{self.api_version}/{media_id}/insights",
+                params={"metric": VIDEO_WATCH_TIME_METRICS, "access_token": access_token},
+            )
+        except InstagramAPIError:
+            return {}
         return self._flatten_insight_values(response.get("data", []))
 
     def get_account_insights(

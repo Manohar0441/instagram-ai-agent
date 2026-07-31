@@ -14,6 +14,7 @@ from app.repositories.instagram_account_repository import InstagramAccountReposi
 from app.repositories.instagram_media_repository import InstagramMediaRepository
 from app.repositories.media_insight_repository import MediaInsightRepository
 from app.repositories.user_repository import UserRepository
+from app.services.analytics_service import AnalyticsService
 from app.services.auth_service import AuthService
 from app.services.instagram_service import InstagramService
 from app.services.user_service import UserService
@@ -62,4 +63,25 @@ def get_instagram_service(
         media_insight_repository,
         account_insight_repository,
         instagram_client,
+    )
+
+
+def get_analytics_service(
+    instagram_account_repository: InstagramAccountRepository = Depends(
+        get_instagram_account_repository
+    ),
+    instagram_media_repository: InstagramMediaRepository = Depends(
+        get_instagram_media_repository
+    ),
+    media_insight_repository: MediaInsightRepository = Depends(get_media_insight_repository),
+    account_insight_repository: AccountInsightRepository = Depends(
+        get_account_insight_repository
+    ),
+) -> AnalyticsService:
+    """Provide an analytics service with its repository dependencies."""
+    return AnalyticsService(
+        instagram_account_repository,
+        instagram_media_repository,
+        media_insight_repository,
+        account_insight_repository,
     )
