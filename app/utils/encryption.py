@@ -2,7 +2,27 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.settings import settings
 
-_fernet = Fernet(settings.TOKEN_ENCRYPTION_KEY.encode("utf-8"))
+
+def _build_fernet() -> Fernet:
+    """Build the Fernet cipher, failing with actionable guidance if misconfigured.
+
+    Without this, a malformed key surfaces as a bare
+    "Fernet key must be 32 url-safe base64-encoded bytes" raised from deep
+    inside an import chain, which gives no hint about which setting is wrong
+    or how to produce a valid one.
+    """
+    try:
+        return Fernet(settings.TOKEN_ENCRYPTION_KEY.encode("utf-8"))
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError(
+            "TOKEN_ENCRYPTION_KEY is not a valid Fernet key (it must be 32 "
+            "url-safe base64-encoded bytes). Generate one with:\n"
+            '  python -c "from cryptography.fernet import Fernet; '
+            'print(Fernet.generate_key().decode())"'
+        ) from exc
+
+
+_fernet = _build_fernet()
 
 
 def encrypt_token(plain_token: str) -> str:

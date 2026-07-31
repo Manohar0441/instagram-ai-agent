@@ -3,6 +3,14 @@ from typing import Literal
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Secrets published in .env.example. They make a fresh checkout runnable
+# immediately, and are rejected outright in production - see
+# _validate_production_settings.
+_SAMPLE_SECRETS = frozenset({
+    "dev-only-276600405983050a586da0a46095b079b27f257678439047e52ff91c",
+    "cX7aqLayA2jfaLdKAvzVWC0TirwwWbcVPkiKTwAkgE4=",
+})
+
 
 class Settings(BaseSettings):
     APP_NAME: str
@@ -88,6 +96,21 @@ class Settings(BaseSettings):
             errors.append("JWT_SECRET_KEY must be at least 32 characters when ENVIRONMENT=production.")
         if "*" in self.cors_origins:
             errors.append("CORS_ALLOWED_ORIGINS must not include '*' when ENVIRONMENT=production.")
+
+        # .env.example ships working sample secrets so that `cp .env.example
+        # .env` yields a runnable local setup. They are in source control and
+        # therefore public, so production must never start with them.
+        if self.JWT_SECRET_KEY in _SAMPLE_SECRETS:
+            errors.append(
+                "JWT_SECRET_KEY is still the public sample value from .env.example. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        if self.TOKEN_ENCRYPTION_KEY in _SAMPLE_SECRETS:
+            errors.append(
+                "TOKEN_ENCRYPTION_KEY is still the public sample value from .env.example. "
+                "Generate one with: python -c "
+                "\"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            )
 
         if errors:
             raise ValueError(" ".join(errors))

@@ -158,7 +158,216 @@ front if you do this, since multiple containers can't all bind host port
   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
   ```
 
-## 10. Running the tests
+## 10. Reverse proxy and TLS
+
+The app speaks plain HTTP on port 8000 and does **not** terminate TLS. Put a
+reverse proxy in front of it in production. Two things it must do:
+
+1. **Terminate TLS**, so traffic between client and proxy is encrypted.
+2. **Forward the real client IP**, otherwise rate limiting sees every request
+   as coming from the proxy and buckets all users together.
+
+### Nginx
+
+```nginx
+upstream instagram_ai {
+    server 127.0.0.1:8000;
+}
+
+server {
+    listen 80;
+    server_name api.example.com;
+    # Everything except the ACME challenge goes to HTTPS.
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    # The app sets its own security headers; HSTS is repeated here so it is
+    # present even on responses the proxy generates itself (e.g. 502s).
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+
+    client_max_body_size 1m;
+
+    location / {
+        proxy_pass http://instagram_ai;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # AI endpoints wait on an OpenAI round trip; the default 60s is tight.
+        proxy_read_timeout 120s;
+    }
+
+    # Do not expose metrics publicly - scrape them from inside the network.
+    location /metrics { deny all; }
+}
+```
+
+### Caddy
+
+Caddy obtains and renews certificates automatically:
+
+```caddy
+api.example.com {
+    reverse_proxy 127.0.0.1:8000
+    @metrics path /metrics
+    respond @metrics 403
+}
+```
+
+### Making the app trust the proxy
+
+Uvicorn ignores `X-Forwarded-*` headers unless told which proxies to trust.
+Without this, `request.client.host` is the proxy's address and per-IP rate
+limiting is effectively global.
+
+Update the `CMD` in the [Dockerfile](Dockerfile) (or the compose `command:`):
+
+```
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 \
+        --proxy-headers --forwarded-allow-ips="*"
+```
+
+Use `--forwarded-allow-ips="*"` **only** when the app is unreachable except
+through your proxy — otherwise a client can spoof its own IP. If the app port
+is exposed, list the proxy's address explicitly instead.
+
+Also set `CORS_ALLOWED_ORIGINS` to your real frontend origin(s), and remove
+the `ports:` mapping from the `app` service in `docker-compose.prod.yml` so
+only the proxy can reach it.
+
+### TLS checklist
+
+- [ ] TLS 1.2+ only
+- [ ] Certificate auto-renewal running (certbot timer, or Caddy)
+- [ ] HTTP redirects to HTTPS
+- [ ] `--proxy-headers` enabled and the trusted-proxy list scoped correctly
+- [ ] `/metrics` not publicly reachable
+- [ ] `INSTAGRAM_REDIRECT_URI` uses `https://` and matches the Meta app config exactly
+
+---
+
+## 11. Backups
+
+The only stateful component is PostgreSQL. Redis holds cache and queue data,
+both of which are safe to lose — the cache regenerates and queued jobs can be
+re-submitted.
+
+### Backing up
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U postgres -Fc instagram_ai > backup-$(date +%F).dump
+```
+
+`-Fc` produces a compressed custom-format dump, which restores faster and
+allows selective restore.
+
+A minimal nightly cron entry with 14-day retention:
+
+```bash
+0 3 * * * cd /srv/AI-Instalysis && docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U postgres -Fc instagram_ai > /backups/instagram_ai-$(date +\%F).dump && find /backups -name 'instagram_ai-*.dump' -mtime +14 -delete
+```
+
+### Restoring
+
+```bash
+docker compose -f docker-compose.prod.yml stop app worker
+```
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T postgres pg_restore -U postgres -d instagram_ai --clean --if-exists < backup-2026-07-31.dump
+```
+
+```bash
+docker compose -f docker-compose.prod.yml start app worker
+```
+
+### What to know before you rely on this
+
+- **Test the restore.** An untested backup is a hypothesis. Restore into a
+  scratch database periodically and confirm the row counts.
+- **`TOKEN_ENCRYPTION_KEY` is part of your backup.** Stored Instagram tokens
+  are encrypted with it; restoring a dump without the matching key leaves
+  every connected account undecryptable and every user needing to reconnect.
+  Back the key up separately, in a secrets manager — never alongside the dump.
+- **Back up `.env` too**, to the same secrets manager.
+
+---
+
+## 12. Updating and rolling back
+
+### Update
+
+```bash
+git pull
+```
+
+```bash
+docker compose -f docker-compose.prod.yml build
+```
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Migrations run automatically on app startup. Confirm afterwards:
+
+```bash
+curl -fsS https://api.example.com/health
+```
+
+For a zero-downtime update you need two app replicas behind the proxy,
+restarted one at a time — Compose alone cannot do this; use `docker service
+update` (Swarm) or a Kubernetes rolling update.
+
+### Rolling back
+
+Roll back **code** by checking out the previous tag and rebuilding:
+
+```bash
+git checkout <previous-tag> && docker compose -f docker-compose.prod.yml up -d --build
+```
+
+If the release included a migration, roll the **schema** back first — the old
+code will not understand the new schema:
+
+```bash
+docker compose -f docker-compose.prod.yml exec app alembic downgrade -1
+```
+
+Check what you are about to undo:
+
+```bash
+docker compose -f docker-compose.prod.yml exec app alembic current
+```
+
+> **A downgrade that drops a column destroys its data.** If the migration you
+> are reversing added and populated a column, take a backup first. Prefer
+> forward-fixing (a new migration that corrects the problem) over downgrading
+> in production wherever possible.
+
+### Release checklist
+
+- [ ] Backup taken and its restore verified recently
+- [ ] Reviewed the migration SQL: `alembic upgrade head --sql`
+- [ ] `pytest` green on the release commit
+- [ ] Tagged, so rollback has a target
+- [ ] `/health` returns 200 after deploy
+- [ ] Logs checked for errors in the first few minutes
+
+---
+
+## 13. Running the tests
 
 ```bash
 pip install -r requirements-dev.txt
@@ -171,7 +380,7 @@ Redis, no Meta, no OpenAI — so the suite is safe to run anywhere and costs
 nothing. Run a single layer with `pytest -m unit`, `-m integration`, or
 `-m api`. See [CODE_REVIEW.md](CODE_REVIEW.md) for what is and isn't covered.
 
-## 11. Upgrading to the Milestone 9 build
+## 14. Upgrading an existing deployment
 
 Two behavior changes affect a running deployment:
 
@@ -188,11 +397,12 @@ Two behavior changes affect a running deployment:
   bypassing its brute-force rate limit. Any client calling those endpoints
   must move to `/auth/register` and `/auth/me`.
 
-## 12. Pre-launch checklist
+## 15. Pre-launch checklist
 
 - [ ] `ENVIRONMENT=production`, `DEBUG=false`
-- [ ] Real `JWT_SECRET_KEY` (≥32 chars, generated fresh, not the dev value)
-- [ ] Real `TOKEN_ENCRYPTION_KEY` (generated fresh, not the dev value)
+- [ ] Real `JWT_SECRET_KEY` (≥32 chars, generated fresh — **not** the sample value from `.env.example`, which is public)
+- [ ] Real `TOKEN_ENCRYPTION_KEY` (generated fresh — **not** the public sample value)
+- [ ] `TOKEN_ENCRYPTION_KEY` stored in a secrets manager, separately from database backups
 - [ ] `CORS_ALLOWED_ORIGINS` set to your actual frontend origin(s), not `*`
 - [ ] `OPENAI_API_KEY` and Instagram app credentials set, if those features are needed
 - [ ] `POSTGRES_PASSWORD` changed from any default
