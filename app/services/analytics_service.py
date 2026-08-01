@@ -132,10 +132,16 @@ class AnalyticsService:
         limit: int = DEFAULT_TOP_CONTENT_LIMIT,
         metric: str = "engagement_rate",
         order: RankOrder = "top",
+        days: int | None = None,
     ) -> TopContentResponse:
-        """Return content ranked by a chosen metric, best or worst first."""
+        """Return content ranked by a chosen metric, best or worst first.
+
+        When days is given, only posts published within that window are
+        ranked, so "best post last month" is answerable rather than being
+        approximated by an all-time ranking.
+        """
         account = self._get_connected_account(user_id)
-        return self._top_content(account, limit, metric, order)
+        return self._top_content(account, limit, metric, order, days=days)
 
     def _top_content(
         self,
@@ -144,13 +150,33 @@ class AnalyticsService:
         metric: str,
         order: RankOrder,
         media_analytics: list[MediaAnalyticsResponse] | None = None,
+        days: int | None = None,
     ) -> TopContentResponse:
         """Rank content, reusing already-computed media analytics if given."""
         if media_analytics is None:
             media_analytics = self._compute_media_analytics(account.id)
+        if days is not None:
+            media_analytics = self._published_within(media_analytics, days)
         key_func = _METRIC_EXTRACTORS.get(metric, _METRIC_EXTRACTORS["engagement_rate"])
         ranked = rank_content(media_analytics, key_func, order, limit)
         return TopContentResponse(metric=metric, order=order, items=ranked)
+
+    @staticmethod
+    def _published_within(
+        media_analytics: list[MediaAnalyticsResponse], days: int
+    ) -> list[MediaAnalyticsResponse]:
+        """Keep only posts published in the last N days.
+
+        Posts with no recorded publish time are excluded rather than
+        assumed recent - including them would silently misattribute
+        undated content to whatever window the user asked about.
+        """
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        return [
+            item
+            for item in media_analytics
+            if item.posted_at is not None and as_aware_utc(item.posted_at) >= since
+        ]
 
     def get_trends(
         self,

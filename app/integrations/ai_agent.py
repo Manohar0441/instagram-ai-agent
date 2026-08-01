@@ -1,4 +1,4 @@
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -59,9 +59,34 @@ def run_agent(
         for call in (msg.tool_calls or [])
     ]
 
-    final_content = messages[-1].content
-    response_text = final_content if isinstance(final_content, str) else str(final_content)
-    return response_text, tools_used
+    return extract_text(messages[-1].content), tools_used
+
+
+def extract_text(content: Any) -> str:
+    """Reduce an LLM message's content to the text a user should see.
+
+    Older models return a plain string, but Gemini 2.5+ returns a list of
+    typed content blocks - including reasoning blocks carrying opaque
+    `signature` payloads. str()-ing that list leaks a raw Python repr into
+    the chat, so only the text blocks are kept and joined.
+    """
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                text = block.get("text")
+                if isinstance(text, str) and text:
+                    parts.append(text)
+        if parts:
+            return "\n\n".join(parts).strip()
+
+    # Nothing recognizable: prefer an empty string over exposing internals.
+    return ""
 
 
 def generate_structured_response(

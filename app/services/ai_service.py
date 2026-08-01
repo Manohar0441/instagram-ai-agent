@@ -12,6 +12,7 @@ from app.services.ai_generation import (
 from app.services.ai_prompts import SYSTEM_PROMPT
 from app.services.ai_tools import build_tools
 from app.services.analytics_service import AnalyticsService
+from app.services.query_analysis import REFUSAL_MESSAGE, QueryAnalysis, analyze_query
 
 # Re-exported for backward compatibility - previously defined here.
 __all__ = ["AIGenerationError", "AINotConfiguredError", "AIProviderError", "AIService"]
@@ -36,7 +37,20 @@ class AIService:
         self.credential_service = credential_service
 
     def chat(self, user_id: int, message: str) -> ChatResponse:
-        """Answer a natural language analytics question for the given user."""
+        """Answer a natural language analytics question for the given user.
+
+        Out-of-scope questions are refused here, before the model is reached
+        - so they cost nothing, cannot be billed to the user's API key, and
+        cannot carry a prompt injection into the agent.
+        """
+        analysis = analyze_query(message)
+        if not analysis.in_scope:
+            return ChatResponse(
+                response=REFUSAL_MESSAGE,
+                tools_used=[],
+                intent="out_of_scope",
+            )
+
         api_key = self.credential_service.resolve_api_key(user_id)
 
         tools = build_tools(self.analytics_service, user_id)
@@ -45,14 +59,28 @@ class AIService:
         try:
             response_text, tools_used = run_agent(
                 graph,
-                system_prompt=SYSTEM_PROMPT,
+                system_prompt=self._system_prompt(analysis),
                 message=message,
                 recursion_limit=settings.AI_RECURSION_LIMIT,
             )
         except ProviderError as exc:
             raise AIProviderError(f"The AI provider request failed: {exc}") from exc
 
-        return ChatResponse(response=response_text, tools_used=tools_used)
+        return ChatResponse(
+            response=response_text,
+            tools_used=tools_used,
+            intent=analysis.intent,
+        )
+
+    @staticmethod
+    def _system_prompt(analysis: QueryAnalysis) -> str:
+        """Append what was parsed from the question to the base prompt.
+
+        The hint is advisory - the agent still picks its own tools - but it
+        makes time windows deterministic, so "last month" reliably means 30
+        days rather than whatever the model infers that turn.
+        """
+        return f"{SYSTEM_PROMPT}\nParsed from this question: {analysis.as_hint()}\n"
 
     def health_check(self, user_id: int) -> AIHealthResponse:
         """Report whether the AI service is configured and ready for this user."""

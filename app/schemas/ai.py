@@ -14,6 +14,9 @@ class ChatResponse(BaseModel):
 
     response: str
     tools_used: list[str]
+    # What the question was understood to be asking. "out_of_scope" means the
+    # question was refused without reaching the model at all.
+    intent: str = "unknown"
 
 
 class AIHealthResponse(BaseModel):
