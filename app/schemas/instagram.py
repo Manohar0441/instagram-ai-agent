@@ -12,7 +12,7 @@ class InstagramConnectResponse(BaseModel):
 class InstagramAccountResponse(BaseModel):
     """Public representation of a connected Instagram account.
 
-    Deliberately excludes access_token and facebook_page_id.
+    Deliberately excludes access_token.
     """
 
     id: int

@@ -28,7 +28,6 @@ erDiagram
         serial id PK
         int user_id FK "UNIQUE, cascade"
         varchar64 instagram_user_id UK
-        varchar64 facebook_page_id
         varchar255 username
         varchar50 account_type "nullable"
         text biography "nullable"
@@ -163,7 +162,7 @@ runs on SQLite, which is what the test suite uses.
 
 ## Migrations
 
-Five migrations, applied in order:
+Six migrations, applied in order:
 
 ```
 <base>
@@ -171,7 +170,8 @@ Five migrations, applied in order:
        └─ 7baedb55cfeb  add auth fields to users        (email, hashed_password)
             └─ 8adb28f8f995  add instagram integration tables
                  └─ 4f946de6dbf1  add engagement fields  (like_count, comments_count)
-                      └─ c3a71f4b28de  add gemini api key to users              [head]
+                      └─ c3a71f4b28de  add gemini api key to users
+                           └─ d8f4c1a92b6e  drop facebook_page_id               [head]
 ```
 
 ### Commands

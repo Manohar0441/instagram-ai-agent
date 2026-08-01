@@ -140,23 +140,46 @@ Optional integrations:
 <details>
 <summary><strong>Instagram / Meta credentials</strong></summary>
 
-Needed only for `/instagram/*`.
+Needed only for `/instagram/*`. This app uses **Instagram API with Instagram
+Login** — Meta's current product (introduced 2024, insights added January
+2025). It logs an Instagram account in directly; no Facebook Page is
+involved at any step.
 
-1. Create an app at <https://developers.facebook.com/apps> (type: **Business**).
-2. Add the **Facebook Login for Business** product.
-3. Under *Valid OAuth Redirect URIs*, add exactly:
+> **Don't configure "Facebook Login" or generic "Use cases."** That's the
+> older, now-deprecated path (Meta stopped issuing its scopes —
+> `instagram_basic`, `instagram_manage_insights` — to new apps) and it's a
+> dead end: you'll get `Invalid Scopes` on the OAuth dialog no matter how the
+> dashboard is configured. Go straight to the product page below instead.
+
+1. Create an app at <https://developers.facebook.com/apps> (any type works;
+   **Business** is a reasonable default).
+2. In the app dashboard's left sidebar: **Instagram → API setup with
+   Instagram login**. Add the product if it isn't already listed.
+3. That page shows a distinct **Instagram App ID** and **Instagram App
+   Secret** — copy *these*, not the app's main Facebook App ID/Secret from
+   Basic Settings.
+4. On the same page, add the redirect URI exactly:
    `http://localhost:8000/api/v1/instagram/callback`
-4. Copy the App ID and App Secret into `.env`:
+5. Under **Settings → Basic**, make sure **Category** and **Privacy Policy
+   URL** are both set — Instagram Login won't work without them, and any
+   reachable URL is fine for local development.
+6. Copy the credentials into `.env`:
 
 ```
-INSTAGRAM_APP_ID=your-app-id
-INSTAGRAM_APP_SECRET=your-app-secret
+INSTAGRAM_APP_ID=your-instagram-app-id
+INSTAGRAM_APP_SECRET=your-instagram-app-secret
 INSTAGRAM_REDIRECT_URI=http://localhost:8000/api/v1/instagram/callback
 ```
 
-You also need an Instagram **Business or Creator** account linked to a
-Facebook Page — personal Instagram accounts cannot be connected, which is a
-Meta platform restriction rather than a limitation of this app.
+While the app is in Development mode, only its admins/developers/testers can
+connect an account. Add yours under **App roles → Instagram testers**, then
+accept the invite on your phone: Instagram app → **Settings → Apps and
+Websites → Tester Invites**. This step is easy to miss and is the most
+common reason a login that otherwise looks correctly configured still fails.
+
+You also need an Instagram **Business or Creator** account — personal
+accounts cannot expose insights through the API. This is a Meta platform
+restriction, not a limitation of this app.
 </details>
 
 <details>

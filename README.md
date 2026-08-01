@@ -44,8 +44,7 @@ write prose, never to produce figures — see
 - Per-IP rate limiting, stricter on auth and AI endpoints
 
 **Instagram integration**
-- Facebook Login for Business OAuth flow with signed, expiring state
-- Automatic discovery of the Instagram Business account behind a Facebook Page
+- Instagram API with Instagram Login (direct login, no Facebook Page needed) with signed, expiring state
 - Long-lived token exchange, encrypted at rest with Fernet
 - Fetch and store profile, posts, reels, and media/account insights
 

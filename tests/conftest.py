@@ -286,7 +286,6 @@ def seed_connected_account(
     account = InstagramAccount(
         user_id=user_id,
         instagram_user_id=instagram_user_id,
-        facebook_page_id="fb_page_1",
         username="creator1",
         account_type="BUSINESS",
         followers_count=1200,
@@ -359,7 +358,7 @@ class FakeGraphClient:
     """Stand-in for InstagramGraphClient covering the full OAuth + fetch flow."""
 
     def build_authorization_url(self, redirect_uri, state):
-        return f"https://www.facebook.com/v21.0/dialog/oauth?redirect_uri={redirect_uri}&state={state}"
+        return f"https://www.instagram.com/oauth/authorize?redirect_uri={redirect_uri}&state={state}"
 
     def exchange_code_for_user_token(self, code, redirect_uri):
         return {"access_token": "short_lived_token"}
@@ -367,17 +366,11 @@ class FakeGraphClient:
     def exchange_for_long_lived_token(self, short_lived_token):
         return {"access_token": "long_lived_token", "expires_in": 5184000}
 
-    def get_facebook_pages(self, user_access_token):
-        return [{"id": "fb_page_1", "name": "Test Page"}]
-
-    def get_linked_instagram_account_id(self, page_id, access_token):
-        return "17841400000000000"
-
-    def get_profile(self, instagram_user_id, access_token):
+    def get_profile(self, access_token):
         return {
-            "id": instagram_user_id, "username": "test_creator", "account_type": "BUSINESS",
+            "user_id": "17841400000000000", "username": "test_creator", "account_type": "BUSINESS",
             "profile_picture_url": "https://example.com/pic.jpg", "followers_count": 1000,
-            "media_count": 2, "biography": "Test bio",
+            "media_count": 2,
         }
 
     def get_media(self, instagram_user_id, access_token, limit=25):

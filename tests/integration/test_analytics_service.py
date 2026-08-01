@@ -91,7 +91,7 @@ class TestMediaAnalytics:
         from app.models.instagram_account import InstagramAccount
 
         db.add(InstagramAccount(
-            user_id=db_user.id, instagram_user_id="ig-empty", facebook_page_id="p",
+            user_id=db_user.id, instagram_user_id="ig-empty",
             username="empty", access_token="x",
         ))
         db.commit()

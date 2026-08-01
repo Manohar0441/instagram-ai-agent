@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     # take before LangGraph aborts the run, guarding against runaway loops.
     AI_RECURSION_LIMIT: int = 8
 
+    # From the app's "Instagram > API setup with Instagram login" dashboard
+    # page - a distinct Instagram App ID/Secret, not the main Facebook one.
     INSTAGRAM_APP_ID: str | None = None
     INSTAGRAM_APP_SECRET: str | None = None
     INSTAGRAM_REDIRECT_URI: str | None = None

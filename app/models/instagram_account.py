@@ -27,8 +27,6 @@ class InstagramAccount(Base):
         index=True,
     )
 
-    facebook_page_id: Mapped[str] = mapped_column(String(64), nullable=False)
-
     username: Mapped[str] = mapped_column(String(255), nullable=False)
     account_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     biography: Mapped[str | None] = mapped_column(Text, nullable=True)

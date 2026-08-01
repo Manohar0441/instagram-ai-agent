@@ -109,23 +109,22 @@ class InstagramService:
         long_lived_token = long_lived["access_token"]
         token_expires_at = self._compute_expiry(long_lived.get("expires_in"))
 
-        instagram_user_id, facebook_page_id = self._discover_instagram_account(long_lived_token)
+        # A single call both discovers which account logged in and fetches
+        # its profile - Instagram Login tokens are scoped to exactly one
+        # account, so there is no separate Page/account lookup step.
+        profile = self._call(self.instagram_client.get_profile, access_token=long_lived_token)
+        instagram_user_id = str(profile.get("user_id") or "")
+        if not instagram_user_id:
+            raise InstagramOAuthError("Instagram did not return an account ID for this login.")
 
         if self.instagram_account_repository.get_by_instagram_user_id(instagram_user_id) is not None:
             raise DuplicateInstagramAccountError(
                 "This Instagram account is already connected to another user."
             )
 
-        profile = self._call(
-            self.instagram_client.get_profile,
-            instagram_user_id=instagram_user_id,
-            access_token=long_lived_token,
-        )
-
         account = InstagramAccount(
             user_id=user_id,
             instagram_user_id=instagram_user_id,
-            facebook_page_id=facebook_page_id,
             username=profile.get("username", ""),
             account_type=profile.get("account_type"),
             biography=profile.get("biography"),
@@ -146,11 +145,7 @@ class InstagramService:
         account = self._get_connected_account(user_id)
         access_token = self._valid_access_token(account)
 
-        profile = self._call(
-            self.instagram_client.get_profile,
-            instagram_user_id=account.instagram_user_id,
-            access_token=access_token,
-        )
+        profile = self._call(self.instagram_client.get_profile, access_token=access_token)
 
         account.username = profile.get("username", account.username)
         account.account_type = profile.get("account_type", account.account_type)
@@ -238,31 +233,6 @@ class InstagramService:
         if account is None:
             raise InstagramAccountNotConnectedError("No Instagram account is connected for this user.")
         return account
-
-    def _discover_instagram_account(self, user_access_token: str) -> tuple[str, str]:
-        """Find the first Facebook Page with a linked Instagram Business account."""
-        pages = self._call(self.instagram_client.get_facebook_pages, user_access_token=user_access_token)
-        if not pages:
-            raise InstagramOAuthError(
-                "No Facebook Pages were found for this user. A Page linked to an "
-                "Instagram Business or Creator account is required."
-            )
-
-        for page in pages:
-            page_id = page.get("id")
-            if not page_id:
-                continue
-            instagram_user_id = self._call(
-                self.instagram_client.get_linked_instagram_account_id,
-                page_id=page_id,
-                access_token=user_access_token,
-            )
-            if instagram_user_id:
-                return instagram_user_id, page_id
-
-        raise InstagramOAuthError(
-            "None of this user's Facebook Pages have a linked Instagram Business or Creator account."
-        )
 
     def _upsert_media(self, instagram_account_id: int, item: dict[str, Any]) -> InstagramMedia:
         media_id = item["id"]

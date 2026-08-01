@@ -52,7 +52,7 @@ class TestConnect:
     def test_returns_an_authorization_url(self, instagram_client, auth_headers):
         response = instagram_client.get("/api/v1/instagram/connect", headers=auth_headers)
         assert response.status_code == 200
-        assert response.json()["authorization_url"].startswith("https://www.facebook.com/")
+        assert response.json()["authorization_url"].startswith("https://www.instagram.com/")
 
     def test_reports_503_when_not_configured(
         self, instagram_client, auth_headers, monkeypatch
