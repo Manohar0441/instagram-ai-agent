@@ -21,5 +21,5 @@ class AIHealthResponse(BaseModel):
 
     status: Literal["ok", "unavailable"]
     model: str
-    openai_configured: bool
+    configured: bool
     details: str | None = None

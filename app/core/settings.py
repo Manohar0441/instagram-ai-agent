@@ -40,9 +40,10 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    OPENAI_API_KEY: str | None = None
-    OPENAI_MODEL: str = "gpt-4o-mini"
-    OPENAI_TEMPERATURE: float = 0.2
+    # Google AI Studio API key (free tier) - https://aistudio.google.com/apikey
+    GOOGLE_API_KEY: str | None = None
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_TEMPERATURE: float = 0.2
 
     # Caps how many agent <-> tool round-trips a single /ai/chat request may
     # take before LangGraph aborts the run, guarding against runaway loops.

@@ -581,15 +581,15 @@ when the model answered without needing data.
 If no Instagram account is connected the request still returns `200` — the
 agent explains the situation conversationally rather than erroring.
 
-**Errors:** `401` · `422` empty or over-length message · `502` OpenAI request
-failed · `503` `OPENAI_API_KEY` not configured
+**Errors:** `401` · `422` empty or over-length message · `502` Gemini request
+failed · `503` `GOOGLE_API_KEY` not configured
 
 ---
 
 ### `GET /api/v1/ai/health`
 
 AI subsystem readiness. **Bearer required.** Checks configuration only — it
-does not call OpenAI, so it costs nothing and does not depend on OpenAI's
+does not call Gemini, so it costs nothing and does not depend on Gemini's
 uptime.
 
 **`200 OK`**
@@ -597,8 +597,8 @@ uptime.
 ```json
 {
   "status": "ok",
-  "model": "gpt-4o-mini",
-  "openai_configured": true,
+  "model": "gemini-2.0-flash",
+  "configured": true,
   "details": null
 }
 ```
@@ -868,8 +868,8 @@ Service banner.
 | `422` | Validation failed | Body or query parameters failed validation |
 | `429` | Rate limited | Exceeded the per-IP limit for that endpoint |
 | `500` | Server error | Unexpected failure — always a generic message; details are logged server-side |
-| `502` | Upstream failed | Instagram Graph API or OpenAI request failed |
-| `503` | Not configured | `OPENAI_API_KEY` or the Instagram credentials are missing |
+| `502` | Upstream failed | Instagram Graph API or Gemini request failed |
+| `503` | Not configured | `GOOGLE_API_KEY` or the Instagram credentials are missing |
 
 Most errors return a single `detail` string:
 

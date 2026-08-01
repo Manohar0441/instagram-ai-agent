@@ -2,7 +2,7 @@ version: "3.9"
 
 # Production stack: app + background worker + Postgres + Redis.
 #
-# Secrets (JWT_SECRET_KEY, OPENAI_API_KEY, TOKEN_ENCRYPTION_KEY, etc.) are
+# Secrets (JWT_SECRET_KEY, GOOGLE_API_KEY, TOKEN_ENCRYPTION_KEY, etc.) are
 # read from a local `.env` file via env_file - never commit that file.
 # POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB below must match the
 # credentials embedded in DATABASE_URL in that same .env file; see

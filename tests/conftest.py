@@ -147,7 +147,7 @@ def _configure_ai(monkeypatch):
     Tests that specifically exercise the unconfigured path override this
     with monkeypatch themselves.
     """
-    monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(settings, "GOOGLE_API_KEY", "test-key")
 
 
 def _build_client(session_factory, raise_server_exceptions: bool):
