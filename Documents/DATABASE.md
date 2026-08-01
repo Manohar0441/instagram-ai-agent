@@ -20,6 +20,7 @@ erDiagram
         varchar200 full_name
         varchar255 email UK "indexed"
         varchar255 hashed_password "bcrypt"
+        text gemini_api_key "Fernet, nullable"
         timestamptz created_at
     }
 
@@ -162,14 +163,15 @@ runs on SQLite, which is what the test suite uses.
 
 ## Migrations
 
-Four migrations, applied in order:
+Five migrations, applied in order:
 
 ```
 <base>
   └─ fd4ce6257d73  create users table
        └─ 7baedb55cfeb  add auth fields to users        (email, hashed_password)
             └─ 8adb28f8f995  add instagram integration tables
-                 └─ 4f946de6dbf1  add engagement fields  (like_count, comments_count)  [head]
+                 └─ 4f946de6dbf1  add engagement fields  (like_count, comments_count)
+                      └─ c3a71f4b28de  add gemini api key to users              [head]
 ```
 
 ### Commands

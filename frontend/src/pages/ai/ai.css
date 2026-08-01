@@ -1,0 +1,153 @@
+/* Chat and insight surfaces. Turns are separated by rules and indentation,
+ * not by bubbles — speech bubbles would import a radius the system bans. */
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 52rem;
+}
+
+.chat__thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.chat__turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--color-rule);
+}
+
+.chat__turn--agent {
+  border-left-color: var(--color-accent);
+}
+
+.chat__role {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.chat__text {
+  white-space: pre-wrap;
+  max-width: 66ch;
+}
+
+.chat__tools {
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chat__composer {
+  display: flex;
+  gap: var(--space-3);
+  align-items: stretch;
+  padding-top: var(--space-4);
+  border-top: var(--rule-width) solid var(--color-rule-strong);
+  position: sticky;
+  bottom: 0;
+  background: var(--color-surface);
+  padding-bottom: var(--space-4);
+}
+
+.chat__suggestions {
+  padding-bottom: var(--space-4);
+}
+
+.chat__suggestion {
+  border: 0;
+  background: none;
+  padding: var(--space-1) 0;
+  text-align: left;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  width: fit-content;
+}
+
+/* ------------------------------------------------------ insight cards */
+
+.insight {
+  padding-top: var(--space-4);
+  border-top: var(--rule-width) solid var(--color-rule-strong);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.insight__title {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.insight__summary {
+  font-size: var(--text-base);
+  max-width: 66ch;
+}
+
+.insight__disclosure {
+  font-size: var(--text-xs);
+}
+
+.insight__disclosure summary {
+  cursor: pointer;
+  color: var(--color-ink-muted);
+  font-weight: var(--weight-medium);
+}
+
+.insight__disclosure summary:hover {
+  color: var(--color-ink);
+}
+
+.insight__data {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface-alt);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-x: auto;
+  white-space: pre;
+  line-height: var(--leading-snug);
+}
+
+.generated-at {
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+}
+
+/* --------------------------------------------------------- list block */
+
+.list-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: var(--rule-width) solid var(--color-rule-strong);
+}
+
+.list-block__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.list-block ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 66ch;
+}

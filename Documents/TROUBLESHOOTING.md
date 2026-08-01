@@ -441,10 +441,16 @@ The message includes Gemini's own error. Common causes:
 
 | Message contains | Meaning | Fix |
 | --- | --- | --- |
-| `API_KEY_INVALID` | Bad or revoked key | Reissue at aistudio.google.com/apikey |
-| `RESOURCE_EXHAUSTED` | Free-tier rate limit hit | Back off; consider raising `CACHE_TTL_SECONDS` |
-| `model not found` | `GEMINI_MODEL` is wrong or unavailable to your account | Use `gemini-2.0-flash` |
+| `API_KEY_INVALID` / `UNAUTHENTICATED` | Bad or revoked key | Reissue at aistudio.google.com/apikey and re-enter it in Settings |
+| `RESOURCE_EXHAUSTED`, `limit: 0` | This key has **no** free-tier quota for that model | Switch `GEMINI_MODEL` — quota is granted per model |
+| `RESOURCE_EXHAUSTED`, non-zero limit | Rate limit hit | Back off; consider raising `CACHE_TTL_SECONDS` |
+| `model not found` | `GEMINI_MODEL` is wrong or unavailable to your account | Use `gemini-2.5-flash` |
 | timeout | Slow upstream | Retry; raise proxy `proxy_read_timeout` |
+
+Note that `limit: 0` is different from ordinary rate limiting: it means the
+model is not available on your key's tier at all, and waiting will not help.
+`gemini-2.0-flash` commonly returns this on newer keys while
+`gemini-2.5-flash` works.
 
 ### AI answers seem stale
 

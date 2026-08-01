@@ -467,6 +467,34 @@ Caching is per user and per parameter set. A cache miss costs one LLM call; a
 hit costs none. If Redis is unavailable the cache **fails open** — the
 request regenerates rather than failing.
 
+### Credential resolution
+
+Every AI code path obtains its Gemini key from a single service,
+`AICredentialService.resolve_api_key(user_id)`:
+
+1. the user's own stored key, Fernet-decrypted
+2. `settings.GOOGLE_API_KEY`, as a development fallback
+3. otherwise `AINotConfiguredError`, which routers map to `503`
+
+It lives in one service rather than in the routers for three reasons. The
+rule is business logic, so a router applying it would violate the layering.
+`app/workers/jobs.py` has no router at all and would need a second copy.
+And a security-sensitive precedence rule that exists in four places is one
+that will eventually disagree with itself.
+
+`AIService`, `InsightsService`, `RecommendationService` and `ReportService`
+each take it as a constructor dependency, exactly as they take
+`AnalyticsService` — no new injection pattern was invented for it.
+
+A stored key that fails to decrypt raises rather than falling back to the
+server key. Silently using a different account's quota because
+`TOKEN_ENCRYPTION_KEY` was rotated is worse than a clear error the user can
+fix by re-entering their key.
+
+The cache is safe under this scheme without any extra work: its keys are
+already user-scoped (`insights:{user_id}:{days}`), so a result generated with
+one user's key can never be served to another.
+
 ---
 
 ## 9. Background jobs

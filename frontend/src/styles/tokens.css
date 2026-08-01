@@ -1,0 +1,89 @@
+/* Instalysis design tokens — Swiss / International Typographic Style.
+ *
+ * The system is subtractive: a strict grid, one typeface, one accent, and
+ * hairline rules doing all the separating work. Anything decorative is
+ * absent by design, not by omission — see the anti-ornament block below.
+ */
+
+:root {
+  /* ---- Typeface ---------------------------------------------------- */
+  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ---- Type scale: 16px base, 1.25 ratio, deliberately only 7 steps -- */
+  --text-xs: 0.75rem;    /* 12  table headers, meta, chart ticks         */
+  --text-sm: 0.875rem;   /* 14  labels, secondary body                   */
+  --text-base: 1rem;     /* 16  body                                     */
+  --text-lg: 1.25rem;    /* 20  section heading                          */
+  --text-xl: 1.75rem;    /* 28  page heading                             */
+  --text-2xl: 2.5rem;    /* 40  stat numerals                            */
+  --text-3xl: 4rem;      /* 64  hero numeral, at most one per screen     */
+
+  --leading-tight: 1.1;   /* headings and numerals                       */
+  --leading-snug: 1.35;
+  --leading-normal: 1.55; /* body                                        */
+
+  --tracking-tight: -0.02em;  /* only at --text-xl and above             */
+  --tracking-normal: 0;
+  --tracking-wide: 0.08em;    /* uppercase eyebrow labels only           */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;         /* three weights, no more                  */
+
+  /* ---- Spacing: 4px sub-unit on an 8px base ------------------------ */
+  --space-1: 0.25rem;   /*   4 */
+  --space-2: 0.5rem;    /*   8 */
+  --space-3: 0.75rem;   /*  12 */
+  --space-4: 1rem;      /*  16 */
+  --space-6: 1.5rem;    /*  24 */
+  --space-8: 2rem;      /*  32 */
+  --space-12: 3rem;     /*  48 */
+  --space-16: 4rem;     /*  64 */
+  --space-24: 6rem;     /*  96 */
+  --space-32: 8rem;     /* 128 */
+
+  /* ---- Grid --------------------------------------------------------- */
+  --grid-columns: 12;
+  --grid-gutter: var(--space-6);  /* 24px, constant at every breakpoint  */
+  --content-max: 90rem;           /* 1440px                              */
+  --page-margin: var(--space-8);  /* 32px; 64px at >=1200px              */
+  --nav-width: 14rem;             /* 224px fixed left column             */
+  --rule-width: 1px;              /* the ONLY separator in the system    */
+
+  /* ---- Colour: near-monochrome, one accent -------------------------- */
+  --color-ink: #111111;          /* body text                            */
+  --color-ink-muted: #6e6e6e;    /* 5.2:1 on white — AA for body         */
+  --color-ink-faint: #a3a3a3;    /* 2.5:1 — DISABLED/DECORATIVE ONLY     */
+  --color-rule: #e0e0e0;         /* hairlines, table borders             */
+  --color-rule-strong: #111111;  /* rule under a page/section heading    */
+  --color-surface: #ffffff;
+  --color-surface-alt: #f5f5f5;  /* zebra rows, inert fills              */
+
+  --color-accent: #e5261f;       /* 4.5:1 — links, active nav, CTA, the
+                                    single chart series                  */
+  --color-accent-ink: #ffffff;
+  --color-accent-weak: #fdeceb;  /* callout ground only, never text      */
+
+  /* Direction is carried by a glyph plus the accent, never by hue alone:
+     a second colour would break the monochrome discipline and fails for
+     the ~8% of men with a red-green deficiency anyway.                  */
+  --color-positive: var(--color-ink);
+  --color-negative: var(--color-accent);
+
+  /* Accessibility overrides the palette: the focus ring must never be
+     confusable with the accent, so it is the one blue in the system.    */
+  --color-focus: #0b57d0;
+
+  /* ---- Anti-ornament ------------------------------------------------ */
+  --radius: 0;      /* no rounded corners, anywhere                      */
+  --shadow: none;   /* separation is rules and whitespace                */
+  --motion-fast: 120ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --page-margin: var(--space-16);
+  }
+}

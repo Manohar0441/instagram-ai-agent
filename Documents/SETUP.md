@@ -168,11 +168,16 @@ Create a free-tier key at <https://aistudio.google.com/apikey>:
 
 ```
 GOOGLE_API_KEY=...
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
-`gemini-2.0-flash` is the default because it is free and supports tool
-calling; any tool-calling Gemini model works.
+`gemini-2.5-flash` is the default because it supports tool calling and is
+available on the free tier; any tool-calling Gemini model works.
+
+If AI endpoints return `502 ... RESOURCE_EXHAUSTED` with `limit: 0`, your
+key has no free-tier quota for that particular model. Try another — quota
+is granted per model, so `gemini-2.0-flash` being exhausted does not mean
+`gemini-2.5-flash` is.
 </details>
 
 ### 4. Start PostgreSQL and Redis
@@ -271,6 +276,37 @@ virtual environment active:
 ```bash
 python -m app.worker
 ```
+
+### 10. Start the frontend (optional)
+
+Instalysis ships a React frontend in [`frontend/`](../frontend). The API is
+fully usable without it via `/docs`, but the frontend is how the product is
+actually meant to be used.
+
+In a separate terminal:
+
+```bash
+cd frontend && npm install
+```
+
+```bash
+npm run dev
+```
+
+Open **http://localhost:3000**.
+
+The port is not arbitrary. `CORS_ALLOWED_ORIGINS` defaults to
+`http://localhost:3000`, and because the API sets `allow_credentials=True`,
+a wildcard origin is not permitted by the CORS specification. Vite is pinned
+to 3000 with `strictPort: true` so a port collision fails loudly instead of
+silently moving to 3001, where every request would fail CORS in a way that
+looks like an authentication bug.
+
+`FRONTEND_URL` must point at the same origin — the Instagram OAuth callback
+redirects the browser there when a connection completes.
+
+First run walks through: register → add your own Gemini API key → connect
+Instagram → dashboard. See [`frontend/README.md`](../frontend/README.md).
 
 ---
 
@@ -460,7 +496,7 @@ docker compose exec redis redis-cli
 pytest
 ```
 
-289 tests, no external services required — the database, Redis, Meta, and
+339 tests, no external services required — the database, Redis, Meta, and
 Gemini are all stubbed. See [TESTING.md](TESTING.md).
 
 ---

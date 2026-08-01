@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     # Google AI Studio API key (free tier) - https://aistudio.google.com/apikey
     GOOGLE_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     GEMINI_TEMPERATURE: float = 0.2
 
     # Caps how many agent <-> tool round-trips a single /ai/chat request may

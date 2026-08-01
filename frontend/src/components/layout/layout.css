@@ -1,0 +1,196 @@
+/* The app frame: a fixed left column separated by a hairline, content in
+ * the remaining space capped at the content measure. */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--nav-width) 1fr;
+  min-height: 100vh;
+}
+
+.shell__main {
+  padding: var(--space-12) var(--page-margin) var(--space-24);
+  max-width: var(--content-max);
+  width: 100%;
+}
+
+/* --------------------------------------------------------------- nav */
+
+.nav {
+  border-right: var(--rule-width) solid var(--color-rule);
+  padding: var(--space-8) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.nav__brand {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.nav__brand:hover {
+  text-decoration: none;
+}
+
+.nav__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.nav__group-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+  margin-bottom: var(--space-1);
+}
+
+.nav__link {
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+  text-decoration: none;
+  padding: var(--space-1) 0;
+}
+
+.nav__link:hover {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.nav__link--active {
+  color: var(--color-accent);
+  font-weight: var(--weight-medium);
+}
+
+.nav__footer {
+  margin-top: auto;
+  padding-top: var(--space-6);
+  border-top: var(--rule-width) solid var(--color-rule);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+}
+
+/* ------------------------------------------------------- page header */
+
+.page-header {
+  margin-bottom: var(--space-8);
+}
+
+.page-header__eyebrow {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.page-header__title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-tight);
+  padding-bottom: var(--space-4);
+  border-bottom: var(--rule-width) solid var(--color-rule-strong);
+}
+
+.page-header__description {
+  margin-top: var(--space-4);
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.page-header__actions {
+  margin-top: var(--space-4);
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ---------------------------------------------- centred single-column */
+
+.centered {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+}
+
+.centered__panel {
+  width: 100%;
+  max-width: 26rem;
+}
+
+.centered__brand {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: var(--space-12);
+}
+
+/* Onboarding gets a wider measure than the auth forms. */
+.centered__panel--wide {
+  max-width: 38rem;
+}
+
+.step-marker {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+  margin-bottom: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .nav {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: var(--rule-width) solid var(--color-rule);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-4);
+  }
+
+  .nav__group {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  }
+
+  .nav__group-label {
+    display: none;
+  }
+
+  .nav__footer {
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 0;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .shell__main {
+    padding-top: var(--space-8);
+  }
+}

@@ -36,7 +36,16 @@ ProviderError = GoogleGenerativeAIError
 # outage, or model-configuration failures. Matching on message text is
 # unpleasant, but langchain_google_genai raises one exception type for
 # every failure, so there is nothing structured to branch on.
-_REJECTED_KEY_MARKERS = ("API_KEY_INVALID", "API key not valid", "PERMISSION_DENIED")
+#
+# Verified against the live API rather than guessed - it returns two
+# different shapes: a well-formed but wrong key gives 401 UNAUTHENTICATED,
+# while a malformed one gives 400 INVALID_ARGUMENT / API_KEY_INVALID.
+_REJECTED_KEY_MARKERS = (
+    "UNAUTHENTICATED",
+    "API_KEY_INVALID",
+    "API key not valid",
+    "PERMISSION_DENIED",
+)
 
 
 def build_llm(api_key: str) -> ChatGoogleGenerativeAI:
