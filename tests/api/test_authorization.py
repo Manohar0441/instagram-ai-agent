@@ -21,6 +21,9 @@ PROTECTED_ENDPOINTS = [
     ("DELETE", "/api/v1/instagram/disconnect"),
     ("POST", "/api/v1/ai/chat"),
     ("GET", "/api/v1/ai/health"),
+    ("GET", "/api/v1/ai/key"),
+    ("PUT", "/api/v1/ai/key"),
+    ("DELETE", "/api/v1/ai/key"),
     ("GET", "/api/v1/insights"),
     ("GET", "/api/v1/recommendations"),
     ("GET", "/api/v1/reports/weekly"),
@@ -54,7 +57,14 @@ def test_protected_endpoints_reject_anonymous_callers(client, method, path):
 def test_public_endpoints_are_reachable_without_a_token(client, method, path):
     """These are public by design; the test exists so that making one of
     them public accidentally is a deliberate, visible change."""
-    response = client.request(method, path, json={} if method == "POST" else None)
+    # follow_redirects=False because the Instagram callback answers with a
+    # 302 to the frontend, which TestClient would otherwise try to fetch.
+    response = client.request(
+        method,
+        path,
+        json={} if method == "POST" else None,
+        follow_redirects=False,
+    )
     assert response.status_code != 401, f"{method} {path} unexpectedly requires authentication"
 
 

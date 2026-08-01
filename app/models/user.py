@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -33,6 +33,15 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+    )
+
+    # Encrypted Gemini API key, supplied by the user. Never returned via the
+    # API - UserResponse lists its fields explicitly, so this cannot leak.
+    # Nullable: users fall back to the server-wide GOOGLE_API_KEY until they
+    # provide their own.
+    gemini_api_key: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

@@ -5,6 +5,8 @@ from app.repositories.account_insight_repository import AccountInsightRepository
 from app.repositories.instagram_account_repository import InstagramAccountRepository
 from app.repositories.instagram_media_repository import InstagramMediaRepository
 from app.repositories.media_insight_repository import MediaInsightRepository
+from app.repositories.user_repository import UserRepository
+from app.services.ai_credential_service import AICredentialService
 from app.services.analytics_service import AnalyticsService
 from app.services.report_service import ReportService
 
@@ -27,7 +29,8 @@ def generate_report_job(user_id: int, period: Literal["weekly", "monthly"]) -> d
             MediaInsightRepository(db),
             AccountInsightRepository(db),
         )
-        report_service = ReportService(analytics_service)
+        credential_service = AICredentialService(UserRepository(db))
+        report_service = ReportService(analytics_service, credential_service)
         report = report_service.generate_report(user_id, period=period)
         return report.model_dump(mode="json")
     finally:

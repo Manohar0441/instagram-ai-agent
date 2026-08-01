@@ -374,7 +374,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-289 tests covering unit logic, services against a real database, and every
+339 tests covering unit logic, services against a real database, and every
 endpoint over HTTP. Nothing external is contacted — no database server, no
 Redis, no Meta, no Gemini — so the suite is safe to run anywhere and costs
 nothing. Run a single layer with `pytest -m unit`, `-m integration`, or

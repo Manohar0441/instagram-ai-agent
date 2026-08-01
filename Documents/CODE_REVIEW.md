@@ -139,14 +139,14 @@ test, plus a query-count regression guard).
 ## 4. Test suite
 
 Replaces the ad-hoc scratchpad scripts used during development with a
-committed suite: **289 tests**, all passing.
+committed suite: **339 tests**, all passing.
 
 | Layer | Tests | Location | Covers |
 | --- | ---: | --- | --- |
-| Unit | 61 | `tests/unit/` | Engagement/growth maths, bucketing, ranking, posting-time and format breakdowns, password hashing, token encryption, JWT issue/verify, cache fail-open |
-| Integration | 76 | `tests/integration/` | Services against a real (SQLite) database: users, auth, Instagram OAuth and fetching, analytics, insights/recommendations/reports, background jobs |
-| API | 152 | `tests/api/` | Every endpoint over HTTP: auth, authorization matrix, Instagram, analytics, AI chat, insights/reports, health, metrics, security headers, rate limiting, jobs |
-| **Total** | **289** | | Full run: ~72s |
+| Unit | 84 | `tests/unit/` | Engagement/growth maths, bucketing, ranking, posting-time and format breakdowns, password hashing, token encryption, JWT issue/verify, cache fail-open |
+| Integration | 88 | `tests/integration/` | Services against a real (SQLite) database: users, auth, Instagram OAuth and fetching, analytics, insights/recommendations/reports, background jobs |
+| API | 167 | `tests/api/` | Every endpoint over HTTP: auth, authorization matrix, Instagram, analytics, AI chat, insights/reports, health, metrics, security headers, rate limiting, jobs |
+| **Total** | **339** | | Full run: ~80s |
 
 Run with:
 
@@ -161,7 +161,7 @@ every boundary is stubbed in `tests/conftest.py`, so the suite costs nothing
 to run and is deterministic.
 
 **Notable coverage**
-- A parametrized matrix asserts all 20 protected endpoints reject anonymous
+- A parametrized matrix asserts all 23 protected endpoints reject anonymous
   callers, and that the 8 intentionally-public ones stay reachable — so
   accidentally exposing an endpoint fails the build.
 - Cross-user isolation is asserted for analytics, Instagram data, user

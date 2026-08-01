@@ -235,7 +235,7 @@ sequenceDiagram
 every decoder verifies it. Without that check, any token signed with
 `JWT_SECRET_KEY` would be interchangeable — including the Instagram OAuth
 *state* token, which travels in a URL and therefore reaches browser history
-and the `Referer` header sent to `facebook.com`. That was a real flaw, found
+and the `Referer` header sent to `instagram.com`. That was a real flaw, found
 and fixed in the Milestone 9 review
 ([CODE_REVIEW.md § SEC-2](CODE_REVIEW.md#1-security-findings)).
 
@@ -246,9 +246,15 @@ brute force.
 
 ## 5. Instagram OAuth and Graph API integration
 
-Meta does not expose Instagram Business data directly. The path runs through
-Facebook Login for Business: a user's Facebook Page is what links to their
-Instagram Business account.
+This app uses **Instagram API with Instagram Login**, the product Meta
+introduced in mid-2024 and made feature-complete (insights included) in
+January 2025. It logs a user's Instagram Business/Creator account in
+directly — no Facebook Page is involved at any step. (Meta's earlier
+Facebook-Login-based Instagram Graph API, which required discovering a
+linked Facebook Page, is deprecated for new apps; this codebase originally
+targeted it and was migrated once that stopped working — see
+[TROUBLESHOOTING.md](TROUBLESHOOTING.md#instagram-oauth) if `/instagram/connect`
+ever fails with `Invalid Scopes`.)
 
 ```mermaid
 sequenceDiagram
@@ -256,7 +262,7 @@ sequenceDiagram
     participant FE as Frontend
     participant API as FastAPI
     participant IS as InstagramService
-    participant G as Graph API
+    participant G as Instagram API
     participant DB as PostgreSQL
 
     FE->>API: GET /instagram/connect (Bearer)
@@ -265,7 +271,7 @@ sequenceDiagram
     API-->>FE: 200 {authorization_url}
     Note over FE: Client navigates the browser itself —<br/>the endpoint does not redirect
 
-    FE->>G: browser → consent screen
+    FE->>G: browser → instagram.com consent screen
     U->>G: approves
     G->>API: GET /instagram/callback?code=...&state=...
     Note over API: No Authorization header exists on<br/>a redirect — the signed state identifies the user
@@ -274,14 +280,11 @@ sequenceDiagram
     IS->>IS: verify state signature, expiry, type
     IS->>G: code → short-lived token
     IS->>G: short-lived → long-lived (~60d)
-    IS->>G: GET /me/accounts (Facebook Pages)
-    loop each Page
-        IS->>G: page → instagram_business_account?
-    end
-    IS->>G: GET profile fields
+    IS->>G: GET /me (profile fields + user_id)
+    Note over IS: One call both discovers the account and<br/>fetches its profile — the token is already<br/>scoped to exactly one Instagram account
     IS->>IS: Fernet-encrypt the token
     IS->>DB: INSERT instagram_account + profile snapshot
-    API-->>FE: 200 (no token, no page id in the response)
+    API-->>FE: 302 redirect to FRONTEND_URL (no token in the response)
 ```
 
 Afterwards, `/instagram/media` and `/instagram/insights` fetch and persist
@@ -294,12 +297,11 @@ flowchart LR
         C1["build_authorization_url"]
         C2["exchange_code_for_user_token"]
         C3["exchange_for_long_lived_token"]
-        C4["get_facebook_pages"]
-        C5["get_linked_instagram_account_id"]
-        C6["get_profile / get_media"]
-        C7["get_media_insights / get_account_insights"]
+        C4["get_profile (also account discovery)"]
+        C5["get_media"]
+        C6["get_media_insights / get_account_insights"]
     end
-    Svc["InstagramService"] --> Client --> Meta[("graph.facebook.com")]
+    Svc["InstagramService"] --> Client --> Meta[("graph.instagram.com")]
 ```
 
 The client is the only place that knows Graph API URLs, field lists, and
@@ -466,6 +468,34 @@ response still matches the seeded database exactly.
 Caching is per user and per parameter set. A cache miss costs one LLM call; a
 hit costs none. If Redis is unavailable the cache **fails open** — the
 request regenerates rather than failing.
+
+### Credential resolution
+
+Every AI code path obtains its Gemini key from a single service,
+`AICredentialService.resolve_api_key(user_id)`:
+
+1. the user's own stored key, Fernet-decrypted
+2. `settings.GOOGLE_API_KEY`, as a development fallback
+3. otherwise `AINotConfiguredError`, which routers map to `503`
+
+It lives in one service rather than in the routers for three reasons. The
+rule is business logic, so a router applying it would violate the layering.
+`app/workers/jobs.py` has no router at all and would need a second copy.
+And a security-sensitive precedence rule that exists in four places is one
+that will eventually disagree with itself.
+
+`AIService`, `InsightsService`, `RecommendationService` and `ReportService`
+each take it as a constructor dependency, exactly as they take
+`AnalyticsService` — no new injection pattern was invented for it.
+
+A stored key that fails to decrypt raises rather than falling back to the
+server key. Silently using a different account's quota because
+`TOKEN_ENCRYPTION_KEY` was rotated is worse than a clear error the user can
+fix by re-entering their key.
+
+The cache is safe under this scheme without any extra work: its keys are
+already user-scoped (`insights:{user_id}:{days}`), so a result generated with
+one user's key can never be served to another.
 
 ---
 

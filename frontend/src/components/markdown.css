@@ -1,0 +1,82 @@
+/* Markdown rendered from model output. Tighter vertical rhythm than page
+ * prose, since these blocks sit inside chat bubbles. */
+
+.markdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-size: var(--text-base);
+}
+
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+
+.markdown p {
+  max-width: 68ch;
+  margin: 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  letter-spacing: normal;
+  margin-top: var(--space-2);
+}
+
+.markdown ul,
+.markdown ol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  max-width: 68ch;
+}
+
+.markdown li::marker {
+  color: var(--color-ink-muted);
+}
+
+.markdown strong {
+  font-weight: var(--weight-semibold);
+}
+
+.markdown code {
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.markdown pre {
+  overflow-x: auto;
+  padding: var(--space-4);
+  border: var(--rule-width) solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt);
+}
+
+.markdown pre code {
+  padding: 0;
+  background: none;
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.markdown blockquote {
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--color-rule);
+  color: var(--color-ink-muted);
+}
+
+.markdown__table-scroll {
+  overflow-x: auto;
+}
+
+.markdown hr {
+  border: 0;
+  border-top: var(--rule-width) solid var(--color-rule);
+}

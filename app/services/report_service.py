@@ -4,7 +4,8 @@ from typing import Literal
 from app.core.settings import settings
 from app.integrations.ai_agent import generate_structured_response
 from app.schemas.insights import PerformanceReportResponse, ReportNarratives
-from app.services.ai_generation import AIProviderError, ProviderError, build_llm, ensure_configured
+from app.services.ai_credential_service import AICredentialService
+from app.services.ai_generation import AIProviderError, ProviderError, build_llm
 from app.services.analytics_service import AnalyticsService
 from app.services.insight_prompts import REPORT_SYSTEM_PROMPT, build_report_user_prompt
 from app.utils.cache import get_or_generate
@@ -27,9 +28,14 @@ class ReportService:
     the summary and strategic narrative fields (see ReportNarratives).
     """
 
-    def __init__(self, analytics_service: AnalyticsService) -> None:
-        """Initialize the service with its analytics dependency."""
+    def __init__(
+        self,
+        analytics_service: AnalyticsService,
+        credential_service: AICredentialService,
+    ) -> None:
+        """Initialize the service with its analytics and credential dependencies."""
         self.analytics_service = analytics_service
+        self.credential_service = credential_service
 
     def generate_report(self, user_id: int, period: Literal["weekly", "monthly"]) -> PerformanceReportResponse:
         """Return an AI-generated performance report for the given period.
@@ -46,7 +52,7 @@ class ReportService:
         )
 
     def _generate_report(self, user_id: int, period: Literal["weekly", "monthly"]) -> PerformanceReportResponse:
-        ensure_configured()
+        api_key = self.credential_service.resolve_api_key(user_id)
         config = _PERIOD_CONFIG[period]
         days = config["days"]
 
@@ -79,7 +85,7 @@ class ReportService:
 
         try:
             narratives = generate_structured_response(
-                build_llm(),
+                build_llm(api_key),
                 REPORT_SYSTEM_PROMPT,
                 build_report_user_prompt(context),
                 ReportNarratives,

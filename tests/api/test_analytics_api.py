@@ -134,7 +134,7 @@ class TestEmptyDataIsHandledGracefully:
         from app.models.instagram_account import InstagramAccount
 
         db.add(InstagramAccount(
-            user_id=1, instagram_user_id="ig-empty", facebook_page_id="p",
+            user_id=1, instagram_user_id="ig-empty",
             username="empty", access_token="x",
         ))
         db.commit()

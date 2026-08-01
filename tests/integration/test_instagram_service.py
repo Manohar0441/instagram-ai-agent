@@ -119,11 +119,13 @@ class TestConnectAccount:
                 code="auth-code", state=create_oauth_state_token(other.id)
             )
 
-    def test_reports_a_helpful_error_when_no_page_is_linked(
+    def test_reports_a_helpful_error_when_instagram_omits_the_account_id(
         self, instagram_service, fake_graph_client, db_user, monkeypatch
     ):
-        monkeypatch.setattr(fake_graph_client, "get_facebook_pages", lambda user_access_token: [])
-        with pytest.raises(InstagramOAuthError, match="No Facebook Pages"):
+        monkeypatch.setattr(
+            fake_graph_client, "get_profile", lambda access_token: {"username": "no_id"}
+        )
+        with pytest.raises(InstagramOAuthError, match="did not return an account ID"):
             instagram_service.connect_account(
                 code="auth-code", state=create_oauth_state_token(db_user.id)
             )
@@ -182,7 +184,7 @@ class TestTokenHandling:
         from datetime import datetime, timedelta, timezone
 
         db.add(InstagramAccount(
-            user_id=db_user.id, instagram_user_id="ig-expired", facebook_page_id="p",
+            user_id=db_user.id, instagram_user_id="ig-expired",
             username="expired", access_token="x",
             token_expires_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1),
         ))

@@ -145,6 +145,6 @@ class TestErrorHandling:
                 raise GoogleGenerativeAIError("upstream down")
 
         for module in (insights_module, recommendation_module, report_module):
-            monkeypatch.setattr(module, "build_llm", lambda: FailingLLM())
+            monkeypatch.setattr(module, "build_llm", lambda api_key: FailingLLM())
 
         assert client.get(path, headers=auth_headers).status_code == 502

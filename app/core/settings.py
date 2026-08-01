@@ -42,13 +42,15 @@ class Settings(BaseSettings):
 
     # Google AI Studio API key (free tier) - https://aistudio.google.com/apikey
     GOOGLE_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     GEMINI_TEMPERATURE: float = 0.2
 
     # Caps how many agent <-> tool round-trips a single /ai/chat request may
     # take before LangGraph aborts the run, guarding against runaway loops.
     AI_RECURSION_LIMIT: int = 8
 
+    # From the app's "Instagram > API setup with Instagram login" dashboard
+    # page - a distinct Instagram App ID/Secret, not the main Facebook one.
     INSTAGRAM_APP_ID: str | None = None
     INSTAGRAM_APP_SECRET: str | None = None
     INSTAGRAM_REDIRECT_URI: str | None = None
@@ -60,6 +62,11 @@ class Settings(BaseSettings):
 
     # Comma-separated list of allowed browser origins for CORS.
     CORS_ALLOWED_ORIGINS: str = "http://localhost:3000"
+
+    # Base URL of the Instalysis frontend. The Instagram OAuth callback
+    # redirects the browser back here, since returning JSON would dead-end
+    # the user on a blank page. Must be one of CORS_ALLOWED_ORIGINS.
+    FRONTEND_URL: str = "http://localhost:3000"
 
     # slowapi rate-limit strings, e.g. "100/minute". STRICT applies to
     # expensive AI-backed endpoints, AUTH to login/register.

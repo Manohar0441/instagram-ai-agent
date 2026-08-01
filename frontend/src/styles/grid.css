@@ -1,0 +1,95 @@
+/* ==========================================================================
+   LAYOUT VARIABLES: STRICT GEOMETRY
+   ========================================================================== */
+:root {
+  --grid-columns: 12;
+  --grid-gutter: 2rem; /* Generous gutters for aggressive negative space */
+  
+  --space-2: 0.5rem;
+  --space-4: 2rem;     /* Standard rhythm */
+  --space-8: 4rem;     /* Macro rhythm */
+  
+  --rule-width: 2px;   /* Thick standard rules */
+  --rule-width-lg: 4px; /* Heavy structural rules */
+}
+
+/* ==========================================================================
+   THE 12-COLUMN GRID
+   ========================================================================== */
+/* The 12-column grid and the layout primitives built on it. The gutter is
+ * constant at every breakpoint; only the number of columns a block spans
+ * changes. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns), 1fr);
+  gap: var(--grid-gutter);
+}
+
+.col-1 { grid-column: span 1; }
+.col-2 { grid-column: span 2; }
+.col-3 { grid-column: span 3; }
+.col-4 { grid-column: span 4; }
+.col-5 { grid-column: span 5; }
+.col-6 { grid-column: span 6; }
+.col-7 { grid-column: span 7; }
+.col-8 { grid-column: span 8; }
+.col-9 { grid-column: span 9; }
+.col-10 { grid-column: span 10; }
+.col-11 { grid-column: span 11; }
+.col-12 { grid-column: span 12; }
+
+/* Below the tablet breakpoint every block goes full width — a 12-column
+   grid on a phone is just twelve unusable slivers. */
+@media (max-width: 900px) {
+  .col-1, .col-2, .col-3, .col-4, .col-5, .col-6,
+  .col-7, .col-8, .col-9, .col-10, .col-11 {
+    grid-column: span 12;
+  }
+}
+
+/* ==========================================================================
+   VERTICAL & HORIZONTAL RHYTHM
+   ========================================================================== */
+/* Vertical rhythm helper: consistent spacing between stacked children
+   without margin collapsing surprises. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.stack-lg {
+  gap: var(--space-8);
+}
+
+.stack-sm {
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.row-between {
+  justify-content: space-between;
+}
+
+.row-wrap {
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   RULES & SEPARATORS
+   ========================================================================== */
+/* A hairline rule — no longer a faint line, but a stark structural element. */
+.rule {
+  border-top: var(--rule-width) solid var(--swiss-black);
+}
+
+/* The strong rule acts as a severe break in content, using Swiss Red. */
+.rule-strong {
+  border-top: var(--rule-width-lg) solid var(--swiss-red);
+}

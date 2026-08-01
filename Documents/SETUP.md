@@ -133,30 +133,53 @@ start immediately.
 > silently.
 
 The full variable reference — what is required, what is optional, and what
-each does — is in [`.env.example`](.env.example) itself.
+each does — is in [`.env.example`](../.env.example) itself.
 
 Optional integrations:
 
 <details>
 <summary><strong>Instagram / Meta credentials</strong></summary>
 
-Needed only for `/instagram/*`.
+Needed only for `/instagram/*`. This app uses **Instagram API with Instagram
+Login** — Meta's current product (introduced 2024, insights added January
+2025). It logs an Instagram account in directly; no Facebook Page is
+involved at any step.
 
-1. Create an app at <https://developers.facebook.com/apps> (type: **Business**).
-2. Add the **Facebook Login for Business** product.
-3. Under *Valid OAuth Redirect URIs*, add exactly:
+> **Don't configure "Facebook Login" or generic "Use cases."** That's the
+> older, now-deprecated path (Meta stopped issuing its scopes —
+> `instagram_basic`, `instagram_manage_insights` — to new apps) and it's a
+> dead end: you'll get `Invalid Scopes` on the OAuth dialog no matter how the
+> dashboard is configured. Go straight to the product page below instead.
+
+1. Create an app at <https://developers.facebook.com/apps> (any type works;
+   **Business** is a reasonable default).
+2. In the app dashboard's left sidebar: **Instagram → API setup with
+   Instagram login**. Add the product if it isn't already listed.
+3. That page shows a distinct **Instagram App ID** and **Instagram App
+   Secret** — copy *these*, not the app's main Facebook App ID/Secret from
+   Basic Settings.
+4. On the same page, add the redirect URI exactly:
    `http://localhost:8000/api/v1/instagram/callback`
-4. Copy the App ID and App Secret into `.env`:
+5. Under **Settings → Basic**, make sure **Category** and **Privacy Policy
+   URL** are both set — Instagram Login won't work without them, and any
+   reachable URL is fine for local development.
+6. Copy the credentials into `.env`:
 
 ```
-INSTAGRAM_APP_ID=your-app-id
-INSTAGRAM_APP_SECRET=your-app-secret
+INSTAGRAM_APP_ID=your-instagram-app-id
+INSTAGRAM_APP_SECRET=your-instagram-app-secret
 INSTAGRAM_REDIRECT_URI=http://localhost:8000/api/v1/instagram/callback
 ```
 
-You also need an Instagram **Business or Creator** account linked to a
-Facebook Page — personal Instagram accounts cannot be connected, which is a
-Meta platform restriction rather than a limitation of this app.
+While the app is in Development mode, only its admins/developers/testers can
+connect an account. Add yours under **App roles → Instagram testers**, then
+accept the invite on your phone: Instagram app → **Settings → Apps and
+Websites → Tester Invites**. This step is easy to miss and is the most
+common reason a login that otherwise looks correctly configured still fails.
+
+You also need an Instagram **Business or Creator** account — personal
+accounts cannot expose insights through the API. This is a Meta platform
+restriction, not a limitation of this app.
 </details>
 
 <details>
@@ -168,11 +191,16 @@ Create a free-tier key at <https://aistudio.google.com/apikey>:
 
 ```
 GOOGLE_API_KEY=...
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
-`gemini-2.0-flash` is the default because it is free and supports tool
-calling; any tool-calling Gemini model works.
+`gemini-2.5-flash` is the default because it supports tool calling and is
+available on the free tier; any tool-calling Gemini model works.
+
+If AI endpoints return `502 ... RESOURCE_EXHAUSTED` with `limit: 0`, your
+key has no free-tier quota for that particular model. Try another — quota
+is granted per model, so `gemini-2.0-flash` being exhausted does not mean
+`gemini-2.5-flash` is.
 </details>
 
 ### 4. Start PostgreSQL and Redis
@@ -271,6 +299,37 @@ virtual environment active:
 ```bash
 python -m app.worker
 ```
+
+### 10. Start the frontend (optional)
+
+Instalysis ships a React frontend in [`frontend/`](../frontend). The API is
+fully usable without it via `/docs`, but the frontend is how the product is
+actually meant to be used.
+
+In a separate terminal:
+
+```bash
+cd frontend && npm install
+```
+
+```bash
+npm run dev
+```
+
+Open **http://localhost:3000**.
+
+The port is not arbitrary. `CORS_ALLOWED_ORIGINS` defaults to
+`http://localhost:3000`, and because the API sets `allow_credentials=True`,
+a wildcard origin is not permitted by the CORS specification. Vite is pinned
+to 3000 with `strictPort: true` so a port collision fails loudly instead of
+silently moving to 3001, where every request would fail CORS in a way that
+looks like an authentication bug.
+
+`FRONTEND_URL` must point at the same origin — the Instagram OAuth callback
+redirects the browser there when a connection completes.
+
+First run walks through: register → add your own Gemini API key → connect
+Instagram → dashboard. See [`frontend/README.md`](../frontend/README.md).
 
 ---
 
@@ -460,7 +519,7 @@ docker compose exec redis redis-cli
 pytest
 ```
 
-289 tests, no external services required — the database, Redis, Meta, and
+339 tests, no external services required — the database, Redis, Meta, and
 Gemini are all stubbed. See [TESTING.md](TESTING.md).
 
 ---

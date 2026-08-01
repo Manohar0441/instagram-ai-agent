@@ -1,13 +1,15 @@
-# AI Instagram Analytics Platform
+# Instalysis — AI Instagram Analytics Platform
 
-A production-ready FastAPI backend that connects an Instagram Business or
-Creator account, turns its raw Graph API data into real analytics, and lets
-you interrogate those analytics in plain English through an AI agent.
+A production-ready FastAPI backend and React frontend that connect an
+Instagram Business or Creator account, turn its raw Graph API data into real
+analytics, and let you interrogate those analytics in plain English through
+an AI agent. Every user brings their own Google Gemini API key.
 
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/tests-289%20passing-brightgreen.svg)](Documents/TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-339%20passing-brightgreen.svg)](Documents/TESTING.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
@@ -42,8 +44,7 @@ write prose, never to produce figures — see
 - Per-IP rate limiting, stricter on auth and AI endpoints
 
 **Instagram integration**
-- Facebook Login for Business OAuth flow with signed, expiring state
-- Automatic discovery of the Instagram Business account behind a Facebook Page
+- Instagram API with Instagram Login (direct login, no Facebook Page needed) with signed, expiring state
 - Long-lived token exchange, encrypted at rest with Fernet
 - Fetch and store profile, posts, reels, and media/account insights
 
@@ -55,11 +56,18 @@ write prose, never to produce figures — see
 - Single-call dashboard summary
 
 **AI**
+- Per-user Gemini API keys, Fernet-encrypted at rest and never returned by any endpoint
 - `POST /ai/chat` — conversational analytics via a LangGraph agent with five tools
 - `GET /insights` — five generated performance insights, each carrying its own supporting data
 - `GET /recommendations` — posting times, formats, frequency, and content ideas derived from your own history
 - `GET /reports/{weekly,monthly}` — full performance reports
 - Responses cached per user in Redis, so repeat requests cost no LLM call
+
+**Frontend** ([`frontend/`](frontend))
+- Gated onboarding: bring your own Gemini key, connect Instagram, then the dashboard
+- Overview, trends, posts and rankings, plus chat, insights, recommendations and reports
+- Background report generation with job polling
+- Swiss-minimal design system: strict grid, one accent, hairline rules, hand-rolled SVG charts
 
 **Production**
 - Structured JSON logging with per-request IDs
@@ -127,11 +135,11 @@ AI flows, is in **[ARCHITECTURE.md](Documents/ARCHITECTURE.md)**.
 | Auth | PyJWT + bcrypt | Standard, well-understood primitives |
 | Encryption | cryptography (Fernet) | Authenticated symmetric encryption for stored tokens |
 | AI orchestration | LangGraph 1.2 | Explicit, inspectable agent graph |
-| LLM | Google Gemini (`gemini-2.0-flash` default) | Configurable via `GEMINI_MODEL`; free tier via Google AI Studio |
+| LLM | Google Gemini (`gemini-2.5-flash` default) | Configurable via `GEMINI_MODEL`; free tier via Google AI Studio |
 | Cache & queue | Redis 7 + RQ | One dependency serving both needs |
 | Metrics | prometheus-fastapi-instrumentator | Standard scrape endpoint |
 | Rate limiting | slowapi | Per-route limits |
-| Testing | pytest + fakeredis | 289 tests, no external services required |
+| Testing | pytest + fakeredis | 339 tests, no external services required |
 | Container | Docker multi-stage | Small, non-root production image |
 
 ---
@@ -162,13 +170,22 @@ AI-Instalysis/
 │   ├── workers/                   # background job functions
 │   ├── worker.py                  # RQ worker entrypoint
 │   └── main.py                    # app assembly: middleware, handlers, routers
-├── alembic/versions/              # 4 migrations
+├── alembic/versions/              # 5 migrations
 ├── docker/entrypoint.sh           # migrate, then start
 ├── tests/
-│   ├── unit/                      # 61 pure-logic tests
-│   ├── integration/               # 76 service + repository tests
-│   ├── api/                       # 152 full-stack HTTP tests
+│   ├── unit/                      # 84 pure-logic tests
+│   ├── integration/               # 88 service + repository tests
+│   ├── api/                       # 167 full-stack HTTP tests
 │   └── conftest.py                # all external boundaries stubbed here
+├── frontend/                      # React + Vite client (see its own README)
+│   └── src/
+│       ├── api/                   # typed client, one module per backend router
+│       ├── auth/                  # token storage, session expiry
+│       ├── onboarding/            # AI-key + Instagram connection status
+│       ├── routes/                # route guards
+│       ├── pages/                 # login, onboarding, dashboards, AI, settings
+│       ├── components/            # layout, UI primitives, SVG charts
+│       └── styles/                # design tokens, base, grid
 ├── Dockerfile
 ├── docker-compose.yml             # local dev: Postgres + Redis only
 ├── docker-compose.prod.yml        # full stack: app + worker + Postgres + Redis
@@ -209,12 +226,25 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Open **http://localhost:8000/docs**. Full instructions, including generating
-real secrets and the no-Docker path, are in **[SETUP.md](Documents/SETUP.md)**.
+The API is now at **http://localhost:8000/docs**. For the frontend, in a
+second terminal:
 
-> The Instagram and AI features need Meta and Google Gemini credentials. Without
-> them everything else works and those endpoints return a clear `503` —
-> you can register, log in, and browse the API immediately.
+```bash
+cd frontend && npm install && npm run dev
+```
+
+Open **http://localhost:3000** and register. Onboarding asks for your own
+Gemini API key ([get one free](https://aistudio.google.com/apikey)), then
+your Instagram account.
+
+Full instructions, including generating real secrets and the no-Docker path,
+are in **[SETUP.md](Documents/SETUP.md)**.
+
+> The frontend must run on port 3000 — `CORS_ALLOWED_ORIGINS` defaults to it,
+> and `allow_credentials=True` means a wildcard origin is not permitted.
+>
+> Instagram needs Meta credentials. Without them everything else works and
+> those endpoints return a clear `503`.
 
 ---
 

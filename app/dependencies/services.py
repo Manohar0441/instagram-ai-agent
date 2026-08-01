@@ -16,6 +16,7 @@ from app.repositories.instagram_account_repository import InstagramAccountReposi
 from app.repositories.instagram_media_repository import InstagramMediaRepository
 from app.repositories.media_insight_repository import MediaInsightRepository
 from app.repositories.user_repository import UserRepository
+from app.services.ai_credential_service import AICredentialService
 from app.services.ai_service import AIService
 from app.services.analytics_service import AnalyticsService
 from app.services.auth_service import AuthService
@@ -94,32 +95,43 @@ def get_analytics_service(
     )
 
 
+def get_ai_credential_service(
+    user_repository: UserRepository = Depends(get_user_repository),
+) -> AICredentialService:
+    """Provide an AI credential service with its repository dependencies."""
+    return AICredentialService(user_repository)
+
+
 def get_ai_service(
     analytics_service: AnalyticsService = Depends(get_analytics_service),
+    credential_service: AICredentialService = Depends(get_ai_credential_service),
 ) -> AIService:
-    """Provide an AI service with its analytics service dependency."""
-    return AIService(analytics_service)
+    """Provide an AI service with its analytics and credential dependencies."""
+    return AIService(analytics_service, credential_service)
 
 
 def get_insights_service(
     analytics_service: AnalyticsService = Depends(get_analytics_service),
+    credential_service: AICredentialService = Depends(get_ai_credential_service),
 ) -> InsightsService:
-    """Provide an insights service with its analytics service dependency."""
-    return InsightsService(analytics_service)
+    """Provide an insights service with its analytics and credential dependencies."""
+    return InsightsService(analytics_service, credential_service)
 
 
 def get_recommendation_service(
     analytics_service: AnalyticsService = Depends(get_analytics_service),
+    credential_service: AICredentialService = Depends(get_ai_credential_service),
 ) -> RecommendationService:
-    """Provide a recommendation service with its analytics service dependency."""
-    return RecommendationService(analytics_service)
+    """Provide a recommendation service with its analytics and credential dependencies."""
+    return RecommendationService(analytics_service, credential_service)
 
 
 def get_report_service(
     analytics_service: AnalyticsService = Depends(get_analytics_service),
+    credential_service: AICredentialService = Depends(get_ai_credential_service),
 ) -> ReportService:
-    """Provide a report service with its analytics service dependency."""
-    return ReportService(analytics_service)
+    """Provide a report service with its analytics and credential dependencies."""
+    return ReportService(analytics_service, credential_service)
 
 
 def get_job_service(

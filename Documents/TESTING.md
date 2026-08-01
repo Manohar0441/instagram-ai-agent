@@ -1,6 +1,6 @@
 # Testing
 
-289 tests across three layers. The suite contacts **nothing external** — no
+339 tests across three layers. The suite contacts **nothing external** — no
 database server, no Redis, no Meta, no Gemini — so it runs anywhere, costs
 nothing, and is deterministic.
 
@@ -20,7 +20,7 @@ Run everything:
 pytest
 ```
 
-Expect `289 passed` in roughly 70 seconds. Most of that is bcrypt, which is
+Expect `339 passed` in roughly 80 seconds. Most of that is bcrypt, which is
 deliberately slow by design.
 
 ### By layer
@@ -39,9 +39,9 @@ pytest -m api
 
 | Marker | Tests | Time | What it covers |
 | --- | ---: | ---: | --- |
-| `unit` | 61 | ~2s | Pure functions, no I/O |
-| `integration` | 76 | ~17s | Services + repositories against a real (SQLite) database |
-| `api` | 152 | ~46s | Full stack over HTTP via `TestClient` |
+| `unit` | 84 | ~3s | Pure functions, no I/O |
+| `integration` | 88 | ~21s | Services + repositories against a real (SQLite) database |
+| `api` | 167 | ~56s | Full stack over HTTP via `TestClient` |
 
 ### Narrowing down
 

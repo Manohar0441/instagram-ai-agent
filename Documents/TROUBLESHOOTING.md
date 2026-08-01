@@ -346,7 +346,13 @@ Do not raise these in production — they are brute-force protection.
 
 ---
 
-## Instagram / Meta
+## Instagram OAuth
+
+This app uses **Instagram API with Instagram Login** — see
+[ARCHITECTURE.md § 5](ARCHITECTURE.md#5-instagram-oauth-and-graph-api-integration)
+for why, and [SETUP.md](SETUP.md#3-configure-environment-variables) for how
+to configure a Meta app for it correctly the first time. The entries below
+are for diagnosing it after the fact.
 
 ### `503 Instagram integration is not configured`
 
@@ -360,30 +366,55 @@ INSTAGRAM_REDIRECT_URI=http://localhost:8000/api/v1/instagram/callback
 
 Then restart the app — settings load at startup.
 
+### `Feature unavailable: Facebook Login is currently unavailable for this app`
+
+**Cause.** This means the app has no product configured that can serve a
+login dialog at all — usually because setup started under **Facebook
+Login → Settings** or the generic **Use cases** picker instead of the
+Instagram-specific product page.
+
+**Fix.** Don't configure Facebook Login. Go to **Instagram → API setup with
+Instagram login** in the left sidebar instead — that page is self-contained
+and doesn't require adding a separate Facebook Login use case. Also confirm
+**Settings → Basic** has both **Category** and **Privacy Policy URL** set;
+Instagram Login won't serve at all without them.
+
+### `Invalid Scopes: instagram_basic, instagram_manage_insights, pages_show_list, pages_read_engagement`
+
+**Cause.** The app is requesting permissions from Meta's older,
+Facebook-Login-based Instagram Graph API. Meta stopped issuing that
+product's scopes to new apps after introducing Instagram API with Instagram
+Login in 2024 — no dashboard configuration makes those specific scope names
+valid again.
+
+**Fix.** If you see this, `app/integrations/instagram_client.py` has
+reverted to the old scopes (`instagram_basic` / `instagram_manage_insights`
+/ `pages_show_list` / `pages_read_engagement`) somehow — the current code
+requests `instagram_business_basic,instagram_business_manage_insights`
+instead. Check `git diff` on that file, and confirm `INSTAGRAM_APP_ID`/
+`INSTAGRAM_APP_SECRET` in `.env` are the **Instagram** App ID/Secret from
+*Instagram → API setup with Instagram login*, not the app's main Facebook
+App ID/Secret from *Settings → Basic* — the two are easy to mix up and
+Meta doesn't reject the wrong one until the OAuth dialog itself.
+
 ### `Error validating verification code` / redirect URI mismatch
 
 **Cause.** `INSTAGRAM_REDIRECT_URI` must match a URI registered in the Meta
 app **exactly** — scheme, host, port, path, and trailing slash all count.
 
-**Fix.** Compare `.env` against *Facebook Login for Business → Settings →
-Valid OAuth Redirect URIs*. In production it must be `https://`.
+**Fix.** Compare `.env` against the redirect URI field on *Instagram → API
+setup with Instagram login*. In production it must be `https://`.
 
-### `No Facebook Pages were found for this user`
+### The OAuth dialog loads but nothing happens after approving
 
-**Cause.** The Instagram account is not reachable through a Facebook Page.
-Meta exposes Instagram Business data only via a linked Page — this is a
-platform rule, not an app limitation.
+**Cause.** In Development mode, only the app's admins/developers/testers can
+complete login — and Instagram specifically requires the connecting account
+to accept a **tester invite**, separately from being an app admin.
 
-**Fix.** The user needs:
-1. An Instagram **Business or Creator** account (not personal),
-2. A Facebook Page,
-3. The two linked (*Instagram → Settings → Account type and tools*), and
-4. To grant the Page during the consent screen.
-
-### `None of this user's Facebook Pages have a linked Instagram account`
-
-Pages exist but none links to Instagram. Link them in the Facebook Page's
-*Linked accounts* settings, then reconnect.
+**Fix.** *App roles → Instagram testers* → add the account, then on the
+phone: Instagram app → **Settings → Apps and Websites → Tester Invites** →
+accept. Skipping this step is the most common reason login silently fails
+for the app's own developer.
 
 ### `401 The Instagram access token has expired`
 
@@ -441,10 +472,16 @@ The message includes Gemini's own error. Common causes:
 
 | Message contains | Meaning | Fix |
 | --- | --- | --- |
-| `API_KEY_INVALID` | Bad or revoked key | Reissue at aistudio.google.com/apikey |
-| `RESOURCE_EXHAUSTED` | Free-tier rate limit hit | Back off; consider raising `CACHE_TTL_SECONDS` |
-| `model not found` | `GEMINI_MODEL` is wrong or unavailable to your account | Use `gemini-2.0-flash` |
+| `API_KEY_INVALID` / `UNAUTHENTICATED` | Bad or revoked key | Reissue at aistudio.google.com/apikey and re-enter it in Settings |
+| `RESOURCE_EXHAUSTED`, `limit: 0` | This key has **no** free-tier quota for that model | Switch `GEMINI_MODEL` — quota is granted per model |
+| `RESOURCE_EXHAUSTED`, non-zero limit | Rate limit hit | Back off; consider raising `CACHE_TTL_SECONDS` |
+| `model not found` | `GEMINI_MODEL` is wrong or unavailable to your account | Use `gemini-2.5-flash` |
 | timeout | Slow upstream | Retry; raise proxy `proxy_read_timeout` |
+
+Note that `limit: 0` is different from ordinary rate limiting: it means the
+model is not available on your key's tier at all, and waiting will not help.
+`gemini-2.0-flash` commonly returns this on newer keys while
+`gemini-2.5-flash` works.
 
 ### AI answers seem stale
 

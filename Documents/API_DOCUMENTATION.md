@@ -199,7 +199,7 @@ browser to `authorization_url`.
 
 ```json
 {
-  "authorization_url": "https://www.facebook.com/v21.0/dialog/oauth?client_id=...&state=eyJhbGciOi..."
+  "authorization_url": "https://www.instagram.com/oauth/authorize?client_id=...&state=eyJhbGciOi..."
 }
 ```
 
@@ -212,41 +212,38 @@ the callback to the requesting user.
 
 ### `GET /api/v1/instagram/callback`
 
-Handle Meta's redirect and store the connection. **Public by necessity** — a
-browser redirect carries no `Authorization` header, so the signed `state`
-parameter identifies the user instead.
+Handle Instagram's redirect, store the connection, and send the browser back
+to the frontend. **Public by necessity** — a browser redirect carries no
+`Authorization` header, so the signed `state` parameter identifies the user
+instead.
 
 | Parameter | In | Type | Notes |
 | --- | --- | --- | --- |
-| `code` | query | string? | authorization code from Meta |
+| `code` | query | string? | authorization code from Instagram |
 | `state` | query | string? | signed state issued by `/connect` |
 | `error` | query | string? | present when the user declined |
 | `error_description` | query | string? | human-readable reason |
 
-**`200 OK`**
+**`302 Found`** — always. Every outcome, success or failure, redirects to
+`{FRONTEND_URL}/onboarding/instagram` with query parameters rather than
+returning a status code directly, since this endpoint is reached by a
+browser navigation and an error response would strand the user on a blank
+page:
 
-```json
-{
-  "id": 1,
-  "instagram_user_id": "17841400000000000",
-  "username": "creator1",
-  "account_type": "BUSINESS",
-  "biography": "Coffee and code.",
-  "profile_picture_url": "https://scontent.cdninstagram.com/v/pic.jpg",
-  "followers_count": 1200,
-  "media_count": 2,
-  "token_expires_at": "2026-09-29T19:41:28",
-  "connected_at": "2026-07-31T19:41:28"
-}
+```
+?status=connected
+```
+```
+?status=error&code=invalid_state&message=The+OAuth+state+parameter+is+missing%2C+invalid%2C+or+expired.
 ```
 
-The access token and Facebook Page ID are deliberately absent from this
-schema and never returned.
+`code` is a stable, frontend-facing identifier — `access_denied`,
+`missing_parameters`, `invalid_state`, `already_connected`, `token_expired`,
+`provider_error`, or `unknown_error`. The frontend renders its own copy for
+each rather than displaying `message` directly.
 
-**Errors:** `400` user denied access, or `code`/`state` missing · `401`
-invalid, expired, or wrong-type state · `409` this user already has an
-account connected, or this Instagram account belongs to another user · `502`
-Graph API request failed
+Nothing about the connection — no token, no account ID — appears in the
+redirect. To read the result, call `GET /instagram/profile` afterward.
 
 ---
 
@@ -597,7 +594,7 @@ uptime.
 ```json
 {
   "status": "ok",
-  "model": "gemini-2.0-flash",
+  "model": "gemini-2.5-flash",
   "configured": true,
   "details": null
 }
@@ -605,6 +602,78 @@ uptime.
 
 When unconfigured, `status` is `"unavailable"` and `details` explains why.
 The endpoint still returns `200` — it reports status rather than failing.
+
+Readiness is **per user**: it reflects whichever key that user's requests
+would actually resolve to.
+
+---
+
+## Gemini API key
+
+Each user supplies their own Gemini API key. It is encrypted with Fernet
+before storage and **never returned by any endpoint** — only whether one is
+available, where it came from, and its last four characters.
+
+Resolution order for every AI-backed request:
+
+1. the requesting user's own stored key
+2. the server-wide `GOOGLE_API_KEY`, as a development fallback
+3. otherwise `503`
+
+A stored key that cannot be decrypted (because `TOKEN_ENCRYPTION_KEY` was
+rotated) is a hard failure rather than a silent fall-through to the server
+key — falling through would bill the wrong account.
+
+### `GET /api/v1/ai/key`
+
+Current key status. **Bearer required.**
+
+**`200 OK`**
+
+```json
+{
+  "configured": true,
+  "has_own_key": true,
+  "source": "user",
+  "hint": "OpmA",
+  "model": "gemini-2.5-flash"
+}
+```
+
+`source` is `"user"`, `"server"`, or `"none"`. `hint` is the last four
+characters of the user's own key, or `null` when they have not set one.
+
+### `PUT /api/v1/ai/key`
+
+Store a key, replacing any existing one. **Bearer required.** Rate limited
+to `RATE_LIMIT_STRICT` (10/minute), because it costs a provider round-trip.
+
+**Request**
+
+```json
+{ "api_key": "AQ.Ab8..." }
+```
+
+Must be 20–200 characters of `[A-Za-z0-9_\-.]`. The pattern rejects
+whitespace-padded pastes and keeps malformed values out of the validation
+error detail, which is returned to the client.
+
+**Response:** `AIKeyStatusResponse`, as above.
+
+The key is verified against Gemini before it is stored, but only an
+unambiguous credential rejection is fatal. Quota exhaustion, network
+failures, and model-configuration errors all mean the key itself is fine, so
+it is stored and the problem surfaces on the next real request.
+
+**Errors:** `400` Gemini rejected the key · `401` · `422` malformed ·
+`429` · `404` the user no longer exists
+
+### `DELETE /api/v1/ai/key`
+
+Remove the stored key. **Bearer required.** AI features fall back to the
+server-wide key, or become unavailable if none is configured.
+
+**`204 No Content`** · **Errors:** `401` · `404`
 
 ---
 

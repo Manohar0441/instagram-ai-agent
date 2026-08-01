@@ -1,0 +1,184 @@
+/* Instalysis design tokens: Pure Swiss Minimalism.
+ *
+ * Glassmorphism has been completely removed. This system now relies 
+ * entirely on strict grids, a tight type scale, generous whitespace, 
+ * flush-left text, one aggressive accent colour (Swiss Red), and 
+ * absolute zero ornamentation. 
+ *
+ * No shadows. No gradients. No border radii. 
+ */
+
+:root {
+  /* Enforcing light mode to maintain the stark white/black/red aesthetic */
+  color-scheme: light;
+
+  /* ---- Typeface ---------------------------------------------------- */
+  /* Replaced Inter with the classic Swiss stack */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Courier New", Courier, monospace;
+
+  /* ---- Type scale: 16px base, 1.25 ratio ---------------------------- */
+  --text-xs: 0.75rem;    /* 12  table headers, meta, chart ticks         */
+  --text-sm: 0.875rem;   /* 14  labels, secondary body                   */
+  --text-base: 1rem;     /* 16  body                                     */
+  --text-lg: 1.25rem;    /* 20  section heading                          */
+  --text-xl: 1.75rem;    /* 28  page heading                             */
+  --text-2xl: 2.5rem;    /* 40  stat numerals                            */
+  --text-3xl: 4rem;      /* 64  hero numeral, at most one per screen     */
+
+  --leading-tight: 1;
+  --leading-snug: 1.2;
+  --leading-normal: 1.4;
+
+  --tracking-tight: -0.04em;   /* Aggressive tight tracking for headlines */
+  --tracking-normal: 0;
+  --tracking-wide: 0.05em;     /* Eyebrows */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 700;      /* Pushed to 700 for starker contrast */
+  --weight-bold: 700;
+
+  /* ---- Spacing: 4px sub-unit on an 8px base ------------------------ */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+
+  /* ---- Grid --------------------------------------------------------- */
+  --grid-columns: 12;
+  --grid-gutter: var(--space-8); /* Widened gutters for more negative space */
+  --content-max: 90rem;
+  --page-margin: var(--space-8);
+  --nav-width: 15rem;
+  --rule-width: 2px; /* Thickened rules */
+
+  /* ---- Radius: strictly geometric ----------------------------------- */
+  /* Neutralized all radii to 0px */
+  --radius-sm: 0px;
+  --radius: 0px;
+  --radius-lg: 0px;
+  --radius-full: 0px;
+
+  /* ---- Color Theme: Absolute High Contrast -------------------------- */
+  --color-ink: #000000;
+  --color-ink-muted: #767676;      
+  --color-ink-faint: #e5e5e5;      
+  --color-rule: #000000;
+  --color-rule-strong: #000000;
+
+  /* The page ground. Stripped of all gradients. */
+  --color-canvas: #ffffff;
+  --color-canvas-gradient: none;
+
+  /* Neutralized frosted panel surfaces. They are now just solid white boxes 
+     or completely transparent depending on their usage. */
+  --glass-bg: #ffffff;
+  --glass-bg-strong: #ffffff;
+  --glass-border: #000000;
+  --glass-blur: 0px;
+  --glass-saturate: 100%;
+
+  --color-surface: #ffffff;
+  --color-surface-alt: #f2f2f2;
+
+  /* Aggressive Swiss Red replacing the softer red/blue mix. */
+  --color-accent: #da291c;
+  --color-accent-ink: #ffffff;
+  --color-accent-weak: rgba(218, 41, 28, 0.1);
+
+  --color-positive: var(--color-ink);
+  --color-negative: var(--color-accent);
+
+  /* The focus ring must be highly visible. In a white/red theme, we use red. */
+  --color-focus: #da291c;
+
+  /* ---- Depth: Flattened completely ---------------------------------- */
+  /* Swiss design relies on grid placement for hierarchy, not shadows. */
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-lg: none;
+
+  /* ---- Motion ------------------------------------------------------- */
+  /* Sharper, more abrupt motion curves */
+  --motion-fast: 100ms;
+  --motion: 150ms;
+  --motion-slow: 250ms;
+  --ease: cubic-bezier(0, 0, 0, 1);
+  --ease-out: cubic-bezier(0, 0, 0, 1);
+}
+
+/* ---- Dark theme -----------------------------------------------------
+   Overridden to force strict pure black, pure white, and Swiss red, 
+   removing the muddy grays and soft translucencies. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-ink: #ffffff;
+    --color-ink-muted: #a1a1a1;    
+    --color-ink-faint: #333333;
+    --color-rule: #ffffff;
+    --color-rule-strong: #ffffff;
+
+    --color-canvas: #000000;
+    --color-canvas-gradient: none;
+
+    --glass-bg: #000000;
+    --glass-bg-strong: #000000;
+    --glass-border: #ffffff;
+
+    --color-surface: #000000;
+    --color-surface-alt: #1a1a1a;
+
+    --color-accent: #da291c;
+    --color-accent-ink: #ffffff;
+    --color-accent-weak: rgba(218, 41, 28, 0.2);
+
+    --color-focus: #da291c;
+
+    --shadow-sm: none;
+    --shadow: none;
+    --shadow-lg: none;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-ink: #ffffff;
+  --color-ink-muted: #a1a1a1;
+  --color-ink-faint: #333333;
+  --color-rule: #ffffff;
+  --color-rule-strong: #ffffff;
+
+  --color-canvas: #000000;
+  --color-canvas-gradient: none;
+
+  --glass-bg: #000000;
+  --glass-bg-strong: #000000;
+  --glass-border: #ffffff;
+
+  --color-surface: #000000;
+  --color-surface-alt: #1a1a1a;
+
+  --color-accent: #da291c;
+  --color-accent-ink: #ffffff;
+  --color-accent-weak: rgba(218, 41, 28, 0.2);
+
+  --color-focus: #da291c;
+
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-lg: none;
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --page-margin: var(--space-16);
+  }
+}

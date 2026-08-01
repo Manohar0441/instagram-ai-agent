@@ -1,7 +1,10 @@
 from typing import Annotated
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import RedirectResponse
 
+from app.core.settings import settings
 from app.dependencies.auth import get_current_user
 from app.dependencies.services import get_instagram_service
 from app.models.user import User
@@ -48,6 +51,56 @@ def _handle_service_error(exc: InstagramServiceError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
 
+# Where in the frontend the OAuth round-trip lands.
+_FRONTEND_CALLBACK_PATH = "/onboarding/instagram"
+
+
+def _callback_error_code(exc: InstagramServiceError) -> str:
+    """Map an Instagram service exception to a stable frontend-facing code.
+
+    The frontend renders its own copy from these rather than displaying a
+    backend string, so they are part of the contract and must stay stable.
+    Ordered most-specific first, mirroring _handle_service_error.
+    """
+    if isinstance(exc, InstagramNotConfiguredError):
+        return "not_configured"
+    if isinstance(exc, InvalidOAuthStateError):
+        return "invalid_state"
+    if isinstance(exc, (InstagramAccountAlreadyConnectedError, DuplicateInstagramAccountError)):
+        return "already_connected"
+    if isinstance(exc, InstagramTokenExpiredError):
+        return "token_expired"
+    if isinstance(exc, InstagramOAuthError):
+        return "provider_error"
+    return "unknown_error"
+
+
+def _frontend_redirect(
+    result: str,
+    code: str | None = None,
+    message: str | None = None,
+) -> RedirectResponse:
+    """Send the browser back to the frontend with the outcome of the OAuth trip.
+
+    The target is built from FRONTEND_URL, which is server configuration
+    and never request input, so this cannot become an open redirect. The
+    message is a service exception string - these are written for display
+    and never interpolate a token, which matters because this URL lands in
+    the user's browser history.
+    """
+    params = {"status": result}
+    if code:
+        params["code"] = code
+    if message:
+        params["message"] = message
+
+    base = settings.FRONTEND_URL.rstrip("/")
+    return RedirectResponse(
+        url=f"{base}{_FRONTEND_CALLBACK_PATH}?{urlencode(params)}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
 @router.get(
     "/connect",
     response_model=InstagramConnectResponse,
@@ -78,22 +131,24 @@ def connect(
 
 @router.get(
     "/callback",
-    response_model=InstagramAccountResponse,
-    status_code=status.HTTP_200_OK,
+    response_class=RedirectResponse,
+    status_code=status.HTTP_302_FOUND,
     summary="Handle Instagram OAuth callback",
     description=(
         "Handle Meta's OAuth redirect: exchange the authorization code for "
-        "tokens and persist the connected account. Not Bearer-protected — "
-        "the signed 'state' parameter identifies the initiating user, since "
+        "tokens, persist the connected account, and redirect the browser "
+        "back to the frontend with the outcome. Not Bearer-protected — the "
+        "signed 'state' parameter identifies the initiating user, since "
         "browser redirects cannot carry an Authorization header."
     ),
     operation_id="instagramOAuthCallback",
     responses={
-        status.HTTP_200_OK: {"description": "Instagram account connected successfully."},
-        status.HTTP_400_BAD_REQUEST: {"description": "The user denied access or Meta returned an error."},
-        status.HTTP_401_UNAUTHORIZED: {"description": "The OAuth state parameter is missing or invalid."},
-        status.HTTP_409_CONFLICT: {"description": "An Instagram account is already connected."},
-        status.HTTP_502_BAD_GATEWAY: {"description": "The Instagram API request failed."},
+        status.HTTP_302_FOUND: {
+            "description": (
+                "Redirect to the frontend carrying 'status' (connected or "
+                "error) and, on failure, a stable 'code' and a 'message'."
+            )
+        },
     },
 )
 def callback(
@@ -102,24 +157,32 @@ def callback(
     state: str | None = Query(default=None),
     error: str | None = Query(default=None),
     error_description: str | None = Query(default=None),
-) -> InstagramAccountResponse:
-    """Exchange the OAuth code for tokens and persist the connected account."""
+) -> RedirectResponse:
+    """Exchange the OAuth code for tokens, then redirect back to the frontend.
+
+    Every outcome is a redirect rather than a status code: this endpoint is
+    reached by a browser navigation from Meta, so an error response would
+    strand the user on a JSON page with no way back into the app.
+    """
     if error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_description or f"Instagram authorization failed: {error}",
+        return _frontend_redirect(
+            "error",
+            code="access_denied",
+            message=error_description or f"Instagram authorization failed: {error}",
         )
     if not code or not state:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing required 'code' or 'state' query parameter.",
+        return _frontend_redirect(
+            "error",
+            code="missing_parameters",
+            message="Missing required 'code' or 'state' query parameter.",
         )
 
     try:
-        account = instagram_service.connect_account(code=code, state=state)
-        return InstagramAccountResponse.model_validate(account)
+        instagram_service.connect_account(code=code, state=state)
     except InstagramServiceError as exc:
-        raise _handle_service_error(exc) from exc
+        return _frontend_redirect("error", code=_callback_error_code(exc), message=str(exc))
+
+    return _frontend_redirect("connected")
 
 
 @router.get(

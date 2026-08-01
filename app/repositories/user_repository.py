@@ -21,3 +21,14 @@ class UserRepository(BaseRepository[User]):
         """Return a user by email, or None when no match exists."""
         statement = select(User).where(User.email == email)
         return self.db.scalar(statement)
+
+    def set_gemini_api_key(self, user: User, encrypted_key: str | None) -> User:
+        """Set or clear a user's stored Gemini API key.
+
+        The value must already be encrypted; pass None to remove it.
+        Flushes without committing, like the rest of this layer.
+        """
+        user.gemini_api_key = encrypted_key
+        self.db.flush()
+        self.db.refresh(user)
+        return user

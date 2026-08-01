@@ -59,11 +59,18 @@ def build_tools(analytics_service: AnalyticsService, user_id: int) -> list[BaseT
         return f"[{', '.join(item.model_dump_json() for item in results)}]"
 
     @tool
-    def get_top_or_lowest_content(limit: int = 5, metric: str = "engagement_rate", order: str = "top") -> str:
-        """Get the best- or worst-performing posts/reels, ranked by a metric.
+    def get_top_or_lowest_content(
+        limit: int = 5,
+        metric: str = "engagement_rate",
+        order: str = "top",
+        days: int | None = None,
+    ) -> str:
+        """Get the best- or worst-performing posts/reels, ranked by a metric,
+        optionally restricted to posts published in a recent window.
 
         Use this for "which reel performed best", "which posts had the
-        highest reach", or "what's my worst-performing content".
+        highest reach", "what's my worst-performing content", and
+        time-scoped versions like "best post last month" (days=30).
 
         Args:
             limit: Maximum number of items to return (1-50).
@@ -71,13 +78,17 @@ def build_tools(analytics_service: AnalyticsService, user_id: int) -> list[BaseT
                 "impressions".
             order: "top" for best-performing first, "bottom" for
                 worst-performing first.
+            days: Optional lookback window. When given, only posts published
+                in the last N days are ranked. Omit to rank all stored posts.
         """
         if metric not in _VALID_METRICS:
             metric = "engagement_rate"
         if order not in _VALID_ORDERS:
             order = "top"
         try:
-            result = analytics_service.get_top_content(user_id, limit=limit, metric=metric, order=order)
+            result = analytics_service.get_top_content(
+                user_id, limit=limit, metric=metric, order=order, days=days
+            )
         except InstagramAccountNotConnectedError:
             return NOT_CONNECTED_MESSAGE
         return result.model_dump_json()

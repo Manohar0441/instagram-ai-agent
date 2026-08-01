@@ -3,22 +3,33 @@ from urllib.parse import urlencode
 
 import httpx
 
-OAUTH_DIALOG_BASE_URL = "https://www.facebook.com"
-GRAPH_API_BASE_URL = "https://graph.facebook.com"
+# Instagram API with Instagram Login (the current product; Meta's older
+# Facebook-Login-based Instagram Graph API was superseded by this one in
+# 2024 and stopped issuing its scopes to new apps). Token/auth endpoints are
+# unversioned; data endpoints below are versioned per GRAPH_API_VERSION.
+OAUTH_AUTHORIZE_URL = "https://www.instagram.com/oauth/authorize"
+SHORT_LIVED_TOKEN_URL = "https://api.instagram.com/oauth/access_token"
+LONG_LIVED_TOKEN_URL = "https://graph.instagram.com/access_token"
+GRAPH_API_BASE_URL = "https://graph.instagram.com"
 
-# Facebook Login for Business permissions required to discover a user's
-# Pages and read their linked Instagram Business/Creator account.
-OAUTH_SCOPES = "instagram_basic,instagram_manage_insights,pages_show_list,pages_read_engagement"
+# Read-only access to the connected account's own profile and insights.
+# Publishing/messaging/comments scopes are not requested - this app never
+# writes to Instagram.
+OAUTH_SCOPES = "instagram_business_basic,instagram_business_manage_insights"
 
-PROFILE_FIELDS = "id,username,name,account_type,profile_picture_url,followers_count,media_count,biography"
+# The Graph API does not expose a "biography" field on this product (unlike
+# the older Facebook-Login-based one), so it is not requested here; the
+# corresponding column is always None for accounts connected this way.
+PROFILE_FIELDS = "user_id,username,name,account_type,profile_picture_url,followers_count,media_count"
 # like_count/comments_count are plain media fields (not insight metrics), so
 # they're requested here rather than via the /insights edge.
 MEDIA_FIELDS = "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count"
 
-# Graph API insight metric names as documented for API version v21.x. Meta
-# periodically renames/deprecates metrics between API versions; if calls
-# start failing with an "Invalid metric" error, these lists are the first
-# place to check against the pinned INSTAGRAM_GRAPH_API_VERSION.
+# Graph API insight metric names as documented for the older API version
+# this app was originally built against. Meta renamed/changed some metrics
+# when moving to Instagram API with Instagram Login; if calls start failing
+# with an "Invalid metric" error, these lists are the first place to check
+# against the pinned INSTAGRAM_GRAPH_API_VERSION and the current API docs.
 ACCOUNT_INSIGHT_METRICS = "impressions,reach,profile_views,accounts_engaged"
 IMAGE_INSIGHT_METRICS = "impressions,reach,engagement,saved"
 VIDEO_INSIGHT_METRICS = "plays,reach,saved,shares"
@@ -40,7 +51,7 @@ class InstagramAPIError(Exception):
 
 
 class InstagramGraphClient:
-    """Thin wrapper around the Meta Graph API endpoints this app needs.
+    """Thin wrapper around the Instagram API endpoints this app needs.
 
     New Graph API calls should be added here as additional methods so the
     service layer never constructs Graph API URLs or parses raw responses
@@ -53,7 +64,7 @@ class InstagramGraphClient:
         self.api_version = api_version
 
     def build_authorization_url(self, redirect_uri: str, state: str) -> str:
-        """Build the Facebook Login for Business consent screen URL."""
+        """Build the Instagram Login consent screen URL."""
         params = {
             "client_id": self.app_id,
             "redirect_uri": redirect_uri,
@@ -61,15 +72,21 @@ class InstagramGraphClient:
             "scope": OAUTH_SCOPES,
             "response_type": "code",
         }
-        return f"{OAUTH_DIALOG_BASE_URL}/{self.api_version}/dialog/oauth?{urlencode(params)}"
+        return f"{OAUTH_AUTHORIZE_URL}?{urlencode(params)}"
 
     def exchange_code_for_user_token(self, code: str, redirect_uri: str) -> dict[str, Any]:
-        """Exchange an OAuth authorization code for a short-lived user access token."""
-        return self._get(
-            f"{GRAPH_API_BASE_URL}/{self.api_version}/oauth/access_token",
-            params={
+        """Exchange an OAuth authorization code for a short-lived user access token.
+
+        Unlike the other calls here, this one is a POST with a form-encoded
+        body - that's how Instagram's token endpoint expects it, not query
+        parameters.
+        """
+        return self._post(
+            SHORT_LIVED_TOKEN_URL,
+            data={
                 "client_id": self.app_id,
                 "client_secret": self.app_secret,
+                "grant_type": "authorization_code",
                 "redirect_uri": redirect_uri,
                 "code": code,
             },
@@ -78,36 +95,24 @@ class InstagramGraphClient:
     def exchange_for_long_lived_token(self, short_lived_token: str) -> dict[str, Any]:
         """Exchange a short-lived user token for a long-lived (~60 day) one."""
         return self._get(
-            f"{GRAPH_API_BASE_URL}/{self.api_version}/oauth/access_token",
+            LONG_LIVED_TOKEN_URL,
             params={
-                "grant_type": "fb_exchange_token",
-                "client_id": self.app_id,
+                "grant_type": "ig_exchange_token",
                 "client_secret": self.app_secret,
-                "fb_exchange_token": short_lived_token,
+                "access_token": short_lived_token,
             },
         )
 
-    def get_facebook_pages(self, user_access_token: str) -> list[dict[str, Any]]:
-        """Return the Facebook Pages managed by the authenticated user."""
-        response = self._get(
-            f"{GRAPH_API_BASE_URL}/{self.api_version}/me/accounts",
-            params={"access_token": user_access_token},
-        )
-        return response.get("data", [])
+    def get_profile(self, access_token: str) -> dict[str, Any]:
+        """Fetch profile/account information for the token's own Instagram account.
 
-    def get_linked_instagram_account_id(self, page_id: str, access_token: str) -> str | None:
-        """Return the Instagram Business Account ID linked to a Facebook Page, if any."""
-        response = self._get(
-            f"{GRAPH_API_BASE_URL}/{self.api_version}/{page_id}",
-            params={"fields": "instagram_business_account", "access_token": access_token},
-        )
-        instagram_account = response.get("instagram_business_account")
-        return instagram_account["id"] if instagram_account else None
-
-    def get_profile(self, instagram_user_id: str, access_token: str) -> dict[str, Any]:
-        """Fetch profile/account information for the connected Instagram account."""
+        Instagram Login tokens are scoped to exactly one account, so this
+        always reads via /me rather than by ID - it doubles as account
+        discovery right after connecting (the response's user_id is the
+        account to store) and as the later profile-refresh call.
+        """
         return self._get(
-            f"{GRAPH_API_BASE_URL}/{self.api_version}/{instagram_user_id}",
+            f"{GRAPH_API_BASE_URL}/{self.api_version}/me",
             params={"fields": PROFILE_FIELDS, "access_token": access_token},
         )
 
@@ -189,7 +194,16 @@ class InstagramGraphClient:
             response = httpx.get(url, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
         except httpx.RequestError as exc:
             raise InstagramAPIError(f"Failed to reach Instagram API: {exc}") from exc
+        return self._parse(response)
 
+    def _post(self, url: str, data: dict[str, Any]) -> dict[str, Any]:
+        try:
+            response = httpx.post(url, data=data, timeout=REQUEST_TIMEOUT_SECONDS)
+        except httpx.RequestError as exc:
+            raise InstagramAPIError(f"Failed to reach Instagram API: {exc}") from exc
+        return self._parse(response)
+
+    def _parse(self, response: httpx.Response) -> dict[str, Any]:
         body = self._safe_json(response)
 
         if response.is_error:

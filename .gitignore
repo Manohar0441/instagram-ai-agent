@@ -5,3 +5,10 @@ __pycache__/
 *.pyc
 .vscode/
 .idea/
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+*.local

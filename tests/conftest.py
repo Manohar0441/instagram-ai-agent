@@ -17,6 +17,7 @@ from sqlalchemy.pool import StaticPool
 
 import app.integrations.redis_client as redis_client_module
 import app.integrations.task_queue as task_queue_module
+import app.services.ai_credential_service as credential_module
 import app.services.insights_service as insights_module
 import app.services.recommendation_service as recommendation_module
 import app.services.report_service as report_module
@@ -144,10 +145,16 @@ def _reset_rate_limiter():
 def _configure_ai(monkeypatch):
     """Default every test to a configured-looking AI setup.
 
-    Tests that specifically exercise the unconfigured path override this
-    with monkeypatch themselves.
+    GOOGLE_API_KEY acts as the server-wide fallback, so every test user
+    resolves a key without storing one. Tests that specifically exercise
+    the unconfigured path override this with monkeypatch themselves.
+
+    Storing a key normally probes the real Gemini API; that is stubbed out
+    here so no test reaches the network. Tests for the rejection path
+    override it themselves.
     """
     monkeypatch.setattr(settings, "GOOGLE_API_KEY", "test-key")
+    monkeypatch.setattr(credential_module, "verify_api_key", lambda api_key: None)
 
 
 def _build_client(session_factory, raise_server_exceptions: bool):
@@ -279,7 +286,6 @@ def seed_connected_account(
     account = InstagramAccount(
         user_id=user_id,
         instagram_user_id=instagram_user_id,
-        facebook_page_id="fb_page_1",
         username="creator1",
         account_type="BUSINESS",
         followers_count=1200,
@@ -352,7 +358,7 @@ class FakeGraphClient:
     """Stand-in for InstagramGraphClient covering the full OAuth + fetch flow."""
 
     def build_authorization_url(self, redirect_uri, state):
-        return f"https://www.facebook.com/v21.0/dialog/oauth?redirect_uri={redirect_uri}&state={state}"
+        return f"https://www.instagram.com/oauth/authorize?redirect_uri={redirect_uri}&state={state}"
 
     def exchange_code_for_user_token(self, code, redirect_uri):
         return {"access_token": "short_lived_token"}
@@ -360,17 +366,11 @@ class FakeGraphClient:
     def exchange_for_long_lived_token(self, short_lived_token):
         return {"access_token": "long_lived_token", "expires_in": 5184000}
 
-    def get_facebook_pages(self, user_access_token):
-        return [{"id": "fb_page_1", "name": "Test Page"}]
-
-    def get_linked_instagram_account_id(self, page_id, access_token):
-        return "17841400000000000"
-
-    def get_profile(self, instagram_user_id, access_token):
+    def get_profile(self, access_token):
         return {
-            "id": instagram_user_id, "username": "test_creator", "account_type": "BUSINESS",
+            "user_id": "17841400000000000", "username": "test_creator", "account_type": "BUSINESS",
             "profile_picture_url": "https://example.com/pic.jpg", "followers_count": 1000,
-            "media_count": 2, "biography": "Test bio",
+            "media_count": 2,
         }
 
     def get_media(self, instagram_user_id, access_token, limit=25):
@@ -454,7 +454,7 @@ def fake_structured_llm(monkeypatch):
     })
 
     for module in (insights_module, recommendation_module, report_module):
-        monkeypatch.setattr(module, "build_llm", lambda: llm)
+        monkeypatch.setattr(module, "build_llm", lambda api_key: llm)
     return llm
 
 

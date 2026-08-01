@@ -5,6 +5,8 @@ from app.repositories.account_insight_repository import AccountInsightRepository
 from app.repositories.instagram_account_repository import InstagramAccountRepository
 from app.repositories.instagram_media_repository import InstagramMediaRepository
 from app.repositories.media_insight_repository import MediaInsightRepository
+from app.repositories.user_repository import UserRepository
+from app.services.ai_credential_service import AICredentialService
 from app.services.ai_generation import AINotConfiguredError, AIProviderError
 from app.services.ai_service import AIService
 from app.services.ai_tools import build_tools
@@ -28,18 +30,23 @@ def analytics_service(db):
 
 
 @pytest.fixture
-def insights_service(analytics_service):
-    return InsightsService(analytics_service)
+def credential_service(db):
+    return AICredentialService(UserRepository(db))
 
 
 @pytest.fixture
-def recommendation_service(analytics_service):
-    return RecommendationService(analytics_service)
+def insights_service(analytics_service, credential_service):
+    return InsightsService(analytics_service, credential_service)
 
 
 @pytest.fixture
-def report_service(analytics_service):
-    return ReportService(analytics_service)
+def recommendation_service(analytics_service, credential_service):
+    return RecommendationService(analytics_service, credential_service)
+
+
+@pytest.fixture
+def report_service(analytics_service, credential_service):
+    return ReportService(analytics_service, credential_service)
 
 
 class TestInsightsGrounding:
@@ -82,7 +89,7 @@ class TestInsightsGrounding:
             def invoke(self, messages):
                 raise GoogleGenerativeAIError("upstream down")
 
-        monkeypatch.setattr(module, "build_llm", lambda: FailingLLM())
+        monkeypatch.setattr(module, "build_llm", lambda api_key: FailingLLM())
         with pytest.raises(AIProviderError):
             insights_service.get_insights(db_user.id)
 
@@ -216,15 +223,18 @@ class TestAgentTools:
 
 
 class TestAIServiceHealth:
-    def test_reports_unavailable_without_a_key(self, analytics_service, monkeypatch):
+    def test_reports_unavailable_without_a_key(
+        self, analytics_service, credential_service, db_user, monkeypatch
+    ):
+        """No stored key and no server fallback leaves the user unconfigured."""
         from app.core.settings import settings
 
         monkeypatch.setattr(settings, "GOOGLE_API_KEY", None)
-        health = AIService(analytics_service).health_check()
+        health = AIService(analytics_service, credential_service).health_check(db_user.id)
         assert health.status == "unavailable"
         assert health.configured is False
 
-    def test_reports_ok_with_a_key(self, analytics_service):
-        health = AIService(analytics_service).health_check()
+    def test_reports_ok_with_a_key(self, analytics_service, credential_service, db_user):
+        health = AIService(analytics_service, credential_service).health_check(db_user.id)
         assert health.status == "ok"
         assert health.configured is True
