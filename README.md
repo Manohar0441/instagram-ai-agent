@@ -7,7 +7,7 @@ you interrogate those analytics in plain English through an AI agent.
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688.svg)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/tests-289%20passing-brightgreen.svg)](TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-289%20passing-brightgreen.svg)](Documents/TESTING.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
@@ -30,7 +30,7 @@ The platform has four layers stacked on top of each other:
 
 Every number the AI reports comes from the database. The model is asked to
 write prose, never to produce figures — see
-[Grounding](ARCHITECTURE.md#grounding-how-ai-output-stays-truthful).
+[Grounding](Documents/ARCHITECTURE.md#grounding-how-ai-output-stays-truthful).
 
 ---
 
@@ -88,7 +88,7 @@ flowchart LR
 
     subgraph Ext["External"]
         Meta[("Instagram<br/>Graph API")]
-        OpenAI[("OpenAI")]
+        Gemini[("Google Gemini")]
     end
 
     PG[("PostgreSQL")]
@@ -99,7 +99,7 @@ flowchart LR
     Repo --> PG
     S --> Redis
     S --> Meta
-    S --> OpenAI
+    S --> Gemini
     Redis --> Worker
     Worker --> PG
 ```
@@ -110,7 +110,7 @@ repositories never hold business logic. The AI agent is a client of the
 service layer like any other caller — it has no database access of its own.
 
 Full detail, including sequence diagrams for the auth, OAuth, analytics, and
-AI flows, is in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+AI flows, is in **[ARCHITECTURE.md](Documents/ARCHITECTURE.md)**.
 
 ---
 
@@ -127,7 +127,7 @@ AI flows, is in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 | Auth | PyJWT + bcrypt | Standard, well-understood primitives |
 | Encryption | cryptography (Fernet) | Authenticated symmetric encryption for stored tokens |
 | AI orchestration | LangGraph 1.2 | Explicit, inspectable agent graph |
-| LLM | OpenAI (`gpt-4o-mini` default) | Configurable via `OPENAI_MODEL` |
+| LLM | Google Gemini (`gemini-2.0-flash` default) | Configurable via `GEMINI_MODEL`; free tier via Google AI Studio |
 | Cache & queue | Redis 7 + RQ | One dependency serving both needs |
 | Metrics | prometheus-fastapi-instrumentator | Standard scrape endpoint |
 | Rate limiting | slowapi | Per-route limits |
@@ -151,7 +151,7 @@ AI-Instalysis/
 │   │                              # rate limiting, exception handlers
 │   ├── database/                  # engine, session factory, declarative Base
 │   ├── dependencies/              # FastAPI DI providers (db, auth, repos, services)
-│   ├── integrations/              # outbound clients: Graph API, OpenAI/LangGraph,
+│   ├── integrations/              # outbound clients: Graph API, Gemini/LangGraph,
 │   │                              # Redis, task queue
 │   ├── models/                    # SQLAlchemy ORM models
 │   ├── repositories/              # all database queries live here
@@ -176,7 +176,7 @@ AI-Instalysis/
 ```
 
 Each folder's responsibility and the rules for adding to it are in
-[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md#folder-responsibilities).
+[DEVELOPER_GUIDE.md](Documents/DEVELOPER_GUIDE.md#folder-responsibilities).
 
 ---
 
@@ -210,9 +210,9 @@ uvicorn app.main:app --reload
 ```
 
 Open **http://localhost:8000/docs**. Full instructions, including generating
-real secrets and the no-Docker path, are in **[SETUP.md](SETUP.md)**.
+real secrets and the no-Docker path, are in **[SETUP.md](Documents/SETUP.md)**.
 
-> The Instagram and AI features need Meta and OpenAI credentials. Without
+> The Instagram and AI features need Meta and Google Gemini credentials. Without
 > them everything else works and those endpoints return a clear `503` —
 > you can register, log in, and browse the API immediately.
 
@@ -236,7 +236,7 @@ real secrets and the no-Docker path, are in **[SETUP.md](SETUP.md)**.
 ## API overview
 
 27 endpoints. Full request/response detail in
-**[API_DOCUMENTATION.md](API_DOCUMENTATION.md)**; live docs at `/docs`.
+**[API_DOCUMENTATION.md](Documents/API_DOCUMENTATION.md)**; live docs at `/docs`.
 
 | Group | Endpoints | Auth |
 | --- | --- | --- |
@@ -260,23 +260,23 @@ authenticates via a signed, expiring `state` parameter.
 
 | Document | What's in it |
 | --- | --- |
-| [SETUP.md](SETUP.md) | Local development, with and without Docker |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, layering, and every major flow as a diagram |
-| [API_DOCUMENTATION.md](API_DOCUMENTATION.md) | Every endpoint, parameter, response, and error |
-| [DATABASE.md](DATABASE.md) | Schema, relationships, indexes, migrations |
-| [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) | Coding standards and how to add each kind of component |
-| [TESTING.md](TESTING.md) | Running tests, coverage, writing new ones |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Production deployment, TLS, backups, rollback |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failures and their fixes |
+| [SETUP.md](Documents/SETUP.md) | Local development, with and without Docker |
+| [ARCHITECTURE.md](Documents/ARCHITECTURE.md) | System design, layering, and every major flow as a diagram |
+| [API_DOCUMENTATION.md](Documents/API_DOCUMENTATION.md) | Every endpoint, parameter, response, and error |
+| [DATABASE.md](Documents/DATABASE.md) | Schema, relationships, indexes, migrations |
+| [DEVELOPER_GUIDE.md](Documents/DEVELOPER_GUIDE.md) | Coding standards and how to add each kind of component |
+| [TESTING.md](Documents/TESTING.md) | Running tests, coverage, writing new ones |
+| [DEPLOYMENT.md](Documents/DEPLOYMENT.md) | Production deployment, TLS, backups, rollback |
+| [TROUBLESHOOTING.md](Documents/TROUBLESHOOTING.md) | Common failures and their fixes |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution workflow |
-| [CODE_REVIEW.md](CODE_REVIEW.md) | Security audit and optimization findings |
+| [CODE_REVIEW.md](Documents/CODE_REVIEW.md) | Security audit and optimization findings |
 
 ---
 
 ## Project walkthrough
 
 New to the codebase? Read
-**[ARCHITECTURE.md § End-to-end walkthrough](ARCHITECTURE.md#end-to-end-walkthrough)**,
+**[ARCHITECTURE.md § End-to-end walkthrough](Documents/ARCHITECTURE.md#end-to-end-walkthrough)**,
 which traces a single request from HTTP through to the database and back,
 then follows the four main flows: authentication, Instagram OAuth, the
 analytics pipeline, and the AI agent.
@@ -300,9 +300,9 @@ Known gaps and natural next steps, roughly in order of value:
 - **Completion rate.** Requires video duration, which the current Graph API
   field set does not reliably return — reported as `null` rather than guessed.
 - **Admin role.** Would allow a legitimate user-management surface (see
-  [CODE_REVIEW.md § SEC-1](CODE_REVIEW.md#1-security-findings)).
+  [CODE_REVIEW.md § SEC-1](Documents/CODE_REVIEW.md#1-security-findings)).
 - **Cross-replica rate limiting.** Limits are currently per process; see
-  [DEPLOYMENT.md § Rate limiting](DEPLOYMENT.md#6-rate-limiting) for why.
+  [DEPLOYMENT.md § Rate limiting](Documents/DEPLOYMENT.md#6-rate-limiting) for why.
 - **Dependency scanning in CI** (`pip-audit`) and a CI pipeline generally.
 - **Multiple Instagram accounts per user**, currently one-to-one by design.
 
@@ -311,7 +311,7 @@ Known gaps and natural next steps, roughly in order of value:
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
-workflow, and [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for the architectural
+workflow, and [DEVELOPER_GUIDE.md](Documents/DEVELOPER_GUIDE.md) for the architectural
 rules a change is expected to respect. In short: keep the layering intact,
 add tests, and run `pytest` before opening a pull request.
 

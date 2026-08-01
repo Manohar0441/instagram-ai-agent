@@ -1,11 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
-import openai
-
 from app.core.settings import settings
 from app.integrations.ai_agent import generate_structured_response
 from app.schemas.insights import RecommendationNarratives, RecommendationsResponse
-from app.services.ai_generation import AIProviderError, build_llm, ensure_configured
+from app.services.ai_generation import AIProviderError, ProviderError, build_llm, ensure_configured
 from app.services.analytics_service import AnalyticsService
 from app.services.insight_prompts import RECOMMENDATIONS_SYSTEM_PROMPT, build_recommendations_user_prompt
 from app.utils.analytics_calculations import as_aware_utc
@@ -73,7 +71,7 @@ class RecommendationService:
                 build_recommendations_user_prompt(context),
                 RecommendationNarratives,
             )
-        except openai.OpenAIError as exc:
+        except ProviderError as exc:
             raise AIProviderError(f"The AI provider request failed: {exc}") from exc
 
         return RecommendationsResponse(

@@ -1,5 +1,3 @@
-import openai
-
 from app.core.settings import settings
 from app.integrations.ai_agent import build_agent_graph, run_agent
 from app.schemas.ai import AIHealthResponse, ChatResponse
@@ -7,6 +5,7 @@ from app.services.ai_generation import (
     AIGenerationError,
     AINotConfiguredError,
     AIProviderError,
+    ProviderError,
     build_llm,
     ensure_configured,
 )
@@ -45,17 +44,17 @@ class AIService:
                 message=message,
                 recursion_limit=settings.AI_RECURSION_LIMIT,
             )
-        except openai.OpenAIError as exc:
+        except ProviderError as exc:
             raise AIProviderError(f"The AI provider request failed: {exc}") from exc
 
         return ChatResponse(response=response_text, tools_used=tools_used)
 
     def health_check(self) -> AIHealthResponse:
         """Report whether the AI service is configured and ready to serve requests."""
-        configured = bool(settings.OPENAI_API_KEY)
+        configured = bool(settings.GOOGLE_API_KEY)
         return AIHealthResponse(
             status="ok" if configured else "unavailable",
-            model=settings.OPENAI_MODEL,
-            openai_configured=configured,
-            details=None if configured else "OPENAI_API_KEY is not configured.",
+            model=settings.GEMINI_MODEL,
+            configured=configured,
+            details=None if configured else "GOOGLE_API_KEY is not configured.",
         )

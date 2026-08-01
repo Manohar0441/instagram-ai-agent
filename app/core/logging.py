@@ -56,7 +56,7 @@ def configure_logging() -> None:
     root_logger.handlers = [handler]
     root_logger.setLevel(settings.LOG_LEVEL)
 
-    # These are noisy at INFO (every HTTP call to OpenAI/Instagram logs a
+    # These are noisy at INFO (every HTTP call to Gemini/Instagram logs a
     # line) and duplicate what the request-logging middleware already
     # records at a more useful level of detail.
     logging.getLogger("httpx").setLevel(logging.WARNING)
