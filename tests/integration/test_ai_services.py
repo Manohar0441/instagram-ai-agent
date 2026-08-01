@@ -1,5 +1,5 @@
-import openai
 import pytest
+from langchain_google_genai._common import GoogleGenerativeAIError
 
 from app.repositories.account_insight_repository import AccountInsightRepository
 from app.repositories.instagram_account_repository import InstagramAccountRepository
@@ -66,7 +66,7 @@ class TestInsightsGrounding:
     ):
         from app.core.settings import settings
 
-        monkeypatch.setattr(settings, "OPENAI_API_KEY", None)
+        monkeypatch.setattr(settings, "GOOGLE_API_KEY", None)
         with pytest.raises(AINotConfiguredError):
             insights_service.get_insights(db_user.id)
 
@@ -80,7 +80,7 @@ class TestInsightsGrounding:
                 return self
 
             def invoke(self, messages):
-                raise openai.OpenAIError("upstream down")
+                raise GoogleGenerativeAIError("upstream down")
 
         monkeypatch.setattr(module, "build_llm", lambda: FailingLLM())
         with pytest.raises(AIProviderError):
@@ -219,12 +219,12 @@ class TestAIServiceHealth:
     def test_reports_unavailable_without_a_key(self, analytics_service, monkeypatch):
         from app.core.settings import settings
 
-        monkeypatch.setattr(settings, "OPENAI_API_KEY", None)
+        monkeypatch.setattr(settings, "GOOGLE_API_KEY", None)
         health = AIService(analytics_service).health_check()
         assert health.status == "unavailable"
-        assert health.openai_configured is False
+        assert health.configured is False
 
     def test_reports_ok_with_a_key(self, analytics_service):
         health = AIService(analytics_service).health_check()
         assert health.status == "ok"
-        assert health.openai_configured is True
+        assert health.configured is True

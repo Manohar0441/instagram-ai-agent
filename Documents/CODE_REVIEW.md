@@ -156,7 +156,7 @@ pytest
 
 Or by layer: `pytest -m unit`, `-m integration`, `-m api`.
 
-No test touches the network, a real database, Redis, Meta, or OpenAI —
+No test touches the network, a real database, Redis, Meta, or Gemini —
 every boundary is stubbed in `tests/conftest.py`, so the suite costs nothing
 to run and is deterministic.
 

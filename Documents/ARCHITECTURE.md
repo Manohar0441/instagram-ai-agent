@@ -26,17 +26,17 @@ flowchart TB
     PG[("PostgreSQL 16")]
     Redis[("Redis 7")]
     Meta[("Instagram<br/>Graph API")]
-    OpenAI[("OpenAI API")]
+    Gemini[("Google Gemini API")]
 
     Client -->|HTTPS| MW
     Repos --> PG
     Services -->|cache| Redis
     Services -->|enqueue| Redis
     Services -->|OAuth + data| Meta
-    Services -->|LLM| OpenAI
+    Services -->|LLM| Gemini
     Redis -->|dequeue| Worker
     Worker --> PG
-    Worker --> OpenAI
+    Worker --> Gemini
 
     Prom["Prometheus"] -.->|scrape /metrics| App
     LB["Load balancer"] -.->|probe /health/ready| App
@@ -99,7 +99,7 @@ Supporting packages:
 | --- | --- |
 | `app/core/` | Settings, logging, middleware, rate limiter, exception handlers |
 | `app/dependencies/` | FastAPI DI providers — the wiring between layers |
-| `app/integrations/` | Outbound clients: Graph API, LangGraph/OpenAI, Redis, task queue |
+| `app/integrations/` | Outbound clients: Graph API, LangGraph/Gemini, Redis, task queue |
 | `app/schemas/` | Pydantic request/response contracts |
 | `app/utils/` | Pure functions — hashing, JWT, encryption, cache, analytics maths |
 | `app/workers/` | Background job functions |
@@ -408,7 +408,7 @@ sequenceDiagram
     participant API as FastAPI
     participant AIS as AIService
     participant Graph as LangGraph
-    participant LLM as OpenAI
+    participant LLM as Gemini
     participant AS as AnalyticsService
 
     U->>API: POST /ai/chat {"message": "which reel did best?"}

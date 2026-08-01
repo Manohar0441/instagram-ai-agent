@@ -1,7 +1,7 @@
 # Testing
 
 289 tests across three layers. The suite contacts **nothing external** — no
-database server, no Redis, no Meta, no OpenAI — so it runs anywhere, costs
+database server, no Redis, no Meta, no Gemini — so it runs anywhere, costs
 nothing, and is deterministic.
 
 ---
@@ -158,7 +158,7 @@ tests/
 | PostgreSQL | In-memory SQLite (`StaticPool`) | Real SQL, no server to run |
 | Redis | `fakeredis` | Real client API; also avoids multi-second connection timeouts |
 | Instagram Graph API | `FakeGraphClient` | Deterministic OAuth and fetch responses |
-| OpenAI | `CountingStructuredLLM` / scripted agent models | No spend, and generation calls are countable |
+| Gemini | `CountingStructuredLLM` / scripted agent models | No spend, and generation calls are countable |
 | RQ worker | `Queue(is_async=False)` | Jobs execute inline, so results are assertable immediately |
 
 Autouse fixtures reset shared state between tests: tables are emptied, the

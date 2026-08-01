@@ -1,5 +1,5 @@
-import openai
 import pytest
+from langchain_google_genai._common import GoogleGenerativeAIError
 
 pytestmark = pytest.mark.api
 
@@ -126,7 +126,7 @@ class TestErrorHandling:
     ):
         from app.core.settings import settings
 
-        monkeypatch.setattr(settings, "OPENAI_API_KEY", None)
+        monkeypatch.setattr(settings, "GOOGLE_API_KEY", None)
         assert client.get(path, headers=auth_headers).status_code == 503
 
     @pytest.mark.parametrize("path", AI_ENDPOINTS)
@@ -142,7 +142,7 @@ class TestErrorHandling:
                 return self
 
             def invoke(self, messages):
-                raise openai.OpenAIError("upstream down")
+                raise GoogleGenerativeAIError("upstream down")
 
         for module in (insights_module, recommendation_module, report_module):
             monkeypatch.setattr(module, "build_llm", lambda: FailingLLM())

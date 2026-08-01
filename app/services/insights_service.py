@@ -1,13 +1,11 @@
 from datetime import datetime, timezone
 from typing import Any
 
-import openai
-
 from app.core.settings import settings
 from app.integrations.ai_agent import generate_structured_response
 from app.schemas.analytics import MediaAnalyticsResponse
 from app.schemas.insights import Insight, InsightNarratives, PerformanceInsightsResponse
-from app.services.ai_generation import AIProviderError, build_llm, ensure_configured
+from app.services.ai_generation import AIProviderError, ProviderError, build_llm, ensure_configured
 from app.services.analytics_service import AnalyticsService
 from app.services.insight_prompts import INSIGHTS_SYSTEM_PROMPT, build_insights_user_prompt
 from app.utils.cache import get_or_generate
@@ -70,7 +68,7 @@ class InsightsService:
                 build_insights_user_prompt(context),
                 InsightNarratives,
             )
-        except openai.OpenAIError as exc:
+        except ProviderError as exc:
             raise AIProviderError(f"The AI provider request failed: {exc}") from exc
 
         follower_growth = account.follower_growth.model_dump(mode="json") if account.follower_growth else None

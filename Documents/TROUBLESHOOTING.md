@@ -275,7 +275,7 @@ longer than expected, and the logs show:
 
 **Cause.** Redis is unreachable. This is *designed* behavior — the cache
 fails open, so the request regenerates instead of failing. The cost is
-latency and an extra OpenAI call.
+latency and an extra Gemini API call.
 
 **Fix.** Restore Redis. Nothing is broken in the meantime.
 
@@ -421,12 +421,12 @@ than estimated.
 
 ---
 
-## OpenAI / AI endpoints
+## Gemini / AI endpoints
 
 ### `503 AI features are not configured`
 
 ```
-OPENAI_API_KEY=sk-...
+GOOGLE_API_KEY=...
 ```
 
 Restart afterwards. Confirm with:
@@ -437,14 +437,13 @@ curl http://localhost:8000/api/v1/ai/health -H "Authorization: Bearer <token>"
 
 ### `502 The AI provider request failed`
 
-The message includes OpenAI's own error. Common causes:
+The message includes Gemini's own error. Common causes:
 
 | Message contains | Meaning | Fix |
 | --- | --- | --- |
-| `invalid_api_key` | Bad or revoked key | Reissue at platform.openai.com |
-| `insufficient_quota` | No credit | Add billing |
-| `rate_limit_exceeded` | Too many requests | Back off; consider raising `CACHE_TTL_SECONDS` |
-| `model_not_found` | `OPENAI_MODEL` is wrong or unavailable to your account | Use `gpt-4o-mini` |
+| `API_KEY_INVALID` | Bad or revoked key | Reissue at aistudio.google.com/apikey |
+| `RESOURCE_EXHAUSTED` | Free-tier rate limit hit | Back off; consider raising `CACHE_TTL_SECONDS` |
+| `model not found` | `GEMINI_MODEL` is wrong or unavailable to your account | Use `gemini-2.0-flash` |
 | timeout | Slow upstream | Retry; raise proxy `proxy_read_timeout` |
 
 ### AI answers seem stale
@@ -592,7 +591,7 @@ autouse fixtures; a test that writes to module-level globals without
 2. Set `LOG_LEVEL=DEBUG` and `LOG_FORMAT=text` for readable local output.
 3. Confirm configuration is what you think:
    ```bash
-   python -c "from app.core.settings import settings; print(settings.model_dump(exclude={'JWT_SECRET_KEY','TOKEN_ENCRYPTION_KEY','OPENAI_API_KEY','INSTAGRAM_APP_SECRET','POSTGRES_PASSWORD'}))"
+   python -c "from app.core.settings import settings; print(settings.model_dump(exclude={'JWT_SECRET_KEY','TOKEN_ENCRYPTION_KEY','GOOGLE_API_KEY','INSTAGRAM_APP_SECRET','POSTGRES_PASSWORD'}))"
    ```
 4. Run `pytest` — if the suite passes, the problem is environmental rather
    than in the code.

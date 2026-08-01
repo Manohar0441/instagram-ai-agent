@@ -30,7 +30,7 @@ Copy your local `.env` (never commit it) and ensure at minimum:
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Must match the credentials embedded in `DATABASE_URL`. Used by `docker-compose.prod.yml` to initialize Postgres and build the in-network `DATABASE_URL`. |
 | `REDIS_URL`                  | Same override behavior as `DATABASE_URL`.                              |
 | `CORS_ALLOWED_ORIGINS`       | Comma-separated real frontend origin(s). Must not be `*` in production. |
-| `OPENAI_API_KEY`             | Required for `/ai/*`, `/insights`, `/recommendations`, `/reports/*` to function - those endpoints return 503 without it, everything else works fine. |
+| `GOOGLE_API_KEY`             | Required for `/ai/*`, `/insights`, `/recommendations`, `/reports/*` to function - those endpoints return 503 without it, everything else works fine. |
 | `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET` / `INSTAGRAM_REDIRECT_URI` | Required for `/instagram/connect` - returns 503 without them. |
 
 Startup will refuse to boot with a clear error if `ENVIRONMENT=production`
@@ -99,7 +99,7 @@ cache their (LLM-generated) response in Redis for `CACHE_TTL_SECONDS`
 (default 900s / 15 minutes), keyed per user. If Redis is unreachable,
 caching fails open - the endpoint just generates fresh every time rather
 than erroring. Lower `CACHE_TTL_SECONDS` for fresher data at the cost of
-more OpenAI calls, or raise it to cut cost/latency further.
+more Gemini API calls, or raise it to cut cost/latency further.
 
 ## 6. Rate limiting
 
@@ -204,7 +204,7 @@ server {
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # AI endpoints wait on an OpenAI round trip; the default 60s is tight.
+        # AI endpoints wait on a Gemini round trip; the default 60s is tight.
         proxy_read_timeout 120s;
     }
 
@@ -376,7 +376,7 @@ pytest
 
 289 tests covering unit logic, services against a real database, and every
 endpoint over HTTP. Nothing external is contacted — no database server, no
-Redis, no Meta, no OpenAI — so the suite is safe to run anywhere and costs
+Redis, no Meta, no Gemini — so the suite is safe to run anywhere and costs
 nothing. Run a single layer with `pytest -m unit`, `-m integration`, or
 `-m api`. See [CODE_REVIEW.md](CODE_REVIEW.md) for what is and isn't covered.
 
@@ -404,7 +404,7 @@ Two behavior changes affect a running deployment:
 - [ ] Real `TOKEN_ENCRYPTION_KEY` (generated fresh — **not** the public sample value)
 - [ ] `TOKEN_ENCRYPTION_KEY` stored in a secrets manager, separately from database backups
 - [ ] `CORS_ALLOWED_ORIGINS` set to your actual frontend origin(s), not `*`
-- [ ] `OPENAI_API_KEY` and Instagram app credentials set, if those features are needed
+- [ ] `GOOGLE_API_KEY` and Instagram app credentials set, if those features are needed
 - [ ] `POSTGRES_PASSWORD` changed from any default
 - [ ] `.env` is not committed and is only readable by the deploying process
 - [ ] `docker compose -f docker-compose.prod.yml up -d --build` completes and `GET /health` returns 200

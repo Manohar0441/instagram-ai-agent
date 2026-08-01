@@ -4,7 +4,7 @@ Get the platform running locally. The fastest path is
 [Quick start](#quick-start); the rest of the document explains each step and
 covers running without Docker.
 
-> **You do not need Meta or OpenAI credentials to run this.** Without them
+> **You do not need Meta or Google Gemini credentials to run this.** Without them
 > the Instagram and AI endpoints return a clear `503`; everything else —
 > registration, login, the database, the docs — works normally.
 
@@ -160,19 +160,19 @@ Meta platform restriction rather than a limitation of this app.
 </details>
 
 <details>
-<summary><strong>OpenAI credentials</strong></summary>
+<summary><strong>Google Gemini credentials</strong></summary>
 
 Needed only for `/ai/*`, `/insights`, `/recommendations`, `/reports/*`.
 
-Create a key at <https://platform.openai.com/api-keys>:
+Create a free-tier key at <https://aistudio.google.com/apikey>:
 
 ```
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
+GOOGLE_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
 ```
 
-`gpt-4o-mini` is the default because it is inexpensive; any tool-calling
-OpenAI model works.
+`gemini-2.0-flash` is the default because it is free and supports tool
+calling; any tool-calling Gemini model works.
 </details>
 
 ### 4. Start PostgreSQL and Redis
@@ -461,7 +461,7 @@ pytest
 ```
 
 289 tests, no external services required — the database, Redis, Meta, and
-OpenAI are all stubbed. See [TESTING.md](TESTING.md).
+Gemini are all stubbed. See [TESTING.md](TESTING.md).
 
 ---
 

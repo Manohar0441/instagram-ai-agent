@@ -1,6 +1,6 @@
-import openai
 import pytest
 from langchain_core.messages import AIMessage
+from langchain_google_genai._common import GoogleGenerativeAIError
 
 import app.services.ai_service as ai_service_module
 
@@ -48,7 +48,7 @@ class FailingLLM:
         return self
 
     def invoke(self, messages):
-        raise openai.OpenAIError("upstream is down")
+        raise GoogleGenerativeAIError("upstream is down")
 
 
 @pytest.fixture
@@ -110,7 +110,7 @@ class TestChat:
     def test_reports_503_when_not_configured(self, client, auth_headers, monkeypatch):
         from app.core.settings import settings
 
-        monkeypatch.setattr(settings, "OPENAI_API_KEY", None)
+        monkeypatch.setattr(settings, "GOOGLE_API_KEY", None)
         response = client.post(
             "/api/v1/ai/chat", json={"message": "hello"}, headers=auth_headers
         )
@@ -156,8 +156,8 @@ class TestHealth:
     def test_reports_unavailable_when_not_configured(self, client, auth_headers, monkeypatch):
         from app.core.settings import settings
 
-        monkeypatch.setattr(settings, "OPENAI_API_KEY", None)
+        monkeypatch.setattr(settings, "GOOGLE_API_KEY", None)
         response = client.get("/api/v1/ai/health", headers=auth_headers)
         assert response.status_code == 200
         assert response.json()["status"] == "unavailable"
-        assert response.json()["openai_configured"] is False
+        assert response.json()["configured"] is False
