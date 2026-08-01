@@ -1,7 +1,41 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { useId } from "react";
 
+import { Sparkline } from "../charts/Sparkline";
 import "./ui.css";
+
+// -------------------------------------------------------------- Glass
+
+/** The base frosted surface every panel and card is built on. */
+export function Glass({
+  as: Tag = "div",
+  strong = false,
+  interactive = false,
+  className = "",
+  children,
+  ...rest
+}: {
+  as?: "div" | "section" | "article" | "aside";
+  strong?: boolean;
+  interactive?: boolean;
+  className?: string;
+  children: ReactNode;
+} & React.HTMLAttributes<HTMLDivElement>) {
+  const classes = [
+    "glass",
+    strong ? "glass-strong" : "",
+    interactive ? "glass-interactive" : "",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <Tag className={classes} {...rest}>
+      {children}
+    </Tag>
+  );
+}
 
 // ------------------------------------------------------------- Button
 
@@ -10,12 +44,14 @@ type ButtonVariant = "default" | "primary" | "quiet" | "danger";
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   small?: boolean;
+  icon?: boolean;
   loading?: boolean;
 }
 
 export function Button({
   variant = "default",
   small = false,
+  icon = false,
   loading = false,
   disabled,
   children,
@@ -26,6 +62,7 @@ export function Button({
     "button",
     variant !== "default" ? `button--${variant}` : "",
     small ? "button--small" : "",
+    icon ? "button--icon" : "",
     className,
   ]
     .filter(Boolean)
@@ -66,7 +103,9 @@ export function Field({ label, hint, error, ...rest }: FieldProps) {
         className="field__input"
         id={id}
         aria-invalid={error ? "true" : undefined}
-        aria-describedby={[hint ? hintId : "", error ? errorId : ""].filter(Boolean).join(" ") || undefined}
+        aria-describedby={
+          [hint ? hintId : "", error ? errorId : ""].filter(Boolean).join(" ") || undefined
+        }
         {...rest}
       />
       {error && (
@@ -94,67 +133,134 @@ export function Callout({
       className={`callout ${tone === "error" ? "callout--error" : ""}`}
       role={tone === "error" ? "alert" : undefined}
     >
-      {title && <div className="callout__title">{title}</div>}
-      <div>{children}</div>
+      <div>
+        {title && <div className="callout__title">{title}</div>}
+        <div>{children}</div>
+      </div>
     </div>
   );
 }
 
-// ---------------------------------------------------------- StatBlock
+// -------------------------------------------------------------- Badge
 
-export function StatBlock({
+export function Badge({
+  children,
+  variant = "default",
+}: {
+  children: ReactNode;
+  variant?: "default" | "accent" | "solid";
+}) {
+  return (
+    <span className={`badge ${variant !== "default" ? `badge--${variant}` : ""}`}>
+      {children}
+    </span>
+  );
+}
+
+// ------------------------------------------------------------ Tooltip
+
+export function Tooltip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span className="has-tooltip" tabIndex={0}>
+      {children}
+      <span className="has-tooltip__bubble" role="tooltip">
+        {label}
+      </span>
+    </span>
+  );
+}
+
+// ----------------------------------------------------------- StatCard
+
+export type TrendDirection = "up" | "down" | "flat";
+
+export function StatCard({
   label,
   value,
+  icon,
   delta,
-  deltaDirection,
+  direction,
+  note,
+  tooltip,
+  sparkline,
 }: {
   label: string;
   value: string;
+  icon?: ReactNode;
   delta?: string;
-  deltaDirection?: "up" | "down" | "flat";
+  direction?: TrendDirection;
+  note?: string;
+  tooltip?: string;
+  sparkline?: (number | null)[];
 }) {
-  // The arrow carries the direction so the meaning survives without colour.
-  const glyph =
-    deltaDirection === "up" ? "↑" : deltaDirection === "down" ? "↓" : "→";
+  // The arrow carries the direction, so meaning survives without colour.
+  const glyph = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
+
+  const labelNode = tooltip ? (
+    <Tooltip label={tooltip}>
+      <span className="stat-card__label">{label}</span>
+    </Tooltip>
+  ) : (
+    <span className="stat-card__label">{label}</span>
+  );
 
   return (
-    <div className="stat-block">
-      <span className="stat-block__label">{label}</span>
-      <span className="stat-block__value">{value}</span>
-      {delta && (
-        <span
-          className={`stat-block__delta ${
-            deltaDirection === "up"
-              ? "stat-block__delta--up"
-              : deltaDirection === "down"
-                ? "stat-block__delta--down"
-                : ""
-          }`}
-        >
-          {glyph} {delta}
-        </span>
-      )}
-    </div>
+    <Glass className="stat-card" interactive>
+      <div className="stat-card__head">
+        {labelNode}
+        {icon && (
+          <span className="stat-card__icon" aria-hidden="true">
+            {icon}
+          </span>
+        )}
+      </div>
+
+      <span className="stat-card__value">{value}</span>
+
+      <div className="stat-card__foot">
+        {delta ? (
+          <span className={`stat-card__delta stat-card__delta--${direction ?? "flat"}`}>
+            <span aria-hidden="true">{glyph}</span>
+            {delta}
+          </span>
+        ) : (
+          note && <span className="stat-card__note">{note}</span>
+        )}
+
+        {sparkline && sparkline.length > 1 && (
+          <span className="stat-card__sparkline">
+            <Sparkline values={sparkline} />
+          </span>
+        )}
+      </div>
+    </Glass>
   );
 }
 
 // --------------------------------------------------------- EmptyState
 
 export function EmptyState({
+  art = "◍",
   title,
   body,
-  action,
+  actions,
 }: {
+  art?: ReactNode;
   title: string;
   body: ReactNode;
-  action?: ReactNode;
+  actions?: ReactNode;
 }) {
   return (
-    <div className="empty-state">
-      <div className="empty-state__title">{title}</div>
-      <div className="empty-state__body">{body}</div>
-      {action}
-    </div>
+    <Glass className="empty-state">
+      <span className="empty-state__art" aria-hidden="true">
+        {art}
+      </span>
+      <div>
+        <div className="empty-state__title">{title}</div>
+        <div className="empty-state__body">{body}</div>
+      </div>
+      {actions && <div className="empty-state__actions">{actions}</div>}
+    </Glass>
   );
 }
 
@@ -166,6 +272,37 @@ export function LoadingPage({ label = "Loading" }: { label?: string }) {
       <span className="spinner spinner--page" aria-hidden="true" />
       <span>{label}…</span>
     </div>
+  );
+}
+
+/** Placeholder cards that hold the layout the real content will occupy. */
+export function SkeletonCards({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid">
+      {Array.from({ length: count }).map((_, index) => (
+        <div className="col-3" key={index}>
+          <Glass className="skeleton-card">
+            <div className="skeleton skeleton-line skeleton-line--sm" />
+            <div className="skeleton skeleton-line skeleton-line--xl" />
+            <div className="skeleton skeleton-line skeleton-line--md" />
+          </Glass>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function SkeletonBlock({ lines = 3 }: { lines?: number }) {
+  const widths = ["--lg", "--md", "--sm"];
+  return (
+    <Glass className="skeleton-card">
+      {Array.from({ length: lines }).map((_, index) => (
+        <div
+          key={index}
+          className={`skeleton skeleton-line skeleton-line${widths[index % widths.length]}`}
+        />
+      ))}
+    </Glass>
   );
 }
 

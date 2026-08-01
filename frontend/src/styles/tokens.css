@@ -1,16 +1,30 @@
-/* Instalysis design tokens — Swiss / International Typographic Style.
+/* Instalysis design tokens.
  *
- * The system is subtractive: a strict grid, one typeface, one accent, and
- * hairline rules doing all the separating work. Anything decorative is
- * absent by design, not by omission — see the anti-ornament block below.
+ * A deliberate synthesis of two systems that pull in opposite directions:
+ *
+ *   Swiss / International Typographic Style gives the STRUCTURE — a strict
+ *   grid, a tight type scale, generous whitespace, flush-left text, one
+ *   accent colour, and no decoration that isn't doing work.
+ *
+ *   Glassmorphism gives the SURFACES — frosted translucent panels, soft
+ *   depth, and rounded corners, so the interface reads as premium rather
+ *   than austere.
+ *
+ * Where they conflict, structure wins: glass is used for panels and cards,
+ * never for type, rules, or data marks. Charts and tables stay flat and
+ * high-contrast, because legibility of the numbers outranks the aesthetic.
  */
 
 :root {
-  /* ---- Typeface ---------------------------------------------------- */
-  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light dark;
 
-  /* ---- Type scale: 16px base, 1.25 ratio, deliberately only 7 steps -- */
+  /* ---- Typeface ---------------------------------------------------- */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, "SF Mono", Menlo,
+    monospace;
+
+  /* ---- Type scale: 16px base, 1.25 ratio ---------------------------- */
   --text-xs: 0.75rem;    /* 12  table headers, meta, chart ticks         */
   --text-sm: 0.875rem;   /* 14  labels, secondary body                   */
   --text-base: 1rem;     /* 16  body                                     */
@@ -19,67 +33,172 @@
   --text-2xl: 2.5rem;    /* 40  stat numerals                            */
   --text-3xl: 4rem;      /* 64  hero numeral, at most one per screen     */
 
-  --leading-tight: 1.1;   /* headings and numerals                       */
+  --leading-tight: 1.1;
   --leading-snug: 1.35;
-  --leading-normal: 1.55; /* body                                        */
+  --leading-normal: 1.55;
 
-  --tracking-tight: -0.02em;  /* only at --text-xl and above             */
+  --tracking-tight: -0.02em;   /* only at --text-xl and above            */
   --tracking-normal: 0;
-  --tracking-wide: 0.08em;    /* uppercase eyebrow labels only           */
+  --tracking-wide: 0.08em;     /* uppercase eyebrow labels only          */
 
   --weight-regular: 400;
   --weight-medium: 500;
-  --weight-bold: 700;         /* three weights, no more                  */
+  --weight-semibold: 600;
+  --weight-bold: 700;
 
   /* ---- Spacing: 4px sub-unit on an 8px base ------------------------ */
-  --space-1: 0.25rem;   /*   4 */
-  --space-2: 0.5rem;    /*   8 */
-  --space-3: 0.75rem;   /*  12 */
-  --space-4: 1rem;      /*  16 */
-  --space-6: 1.5rem;    /*  24 */
-  --space-8: 2rem;      /*  32 */
-  --space-12: 3rem;     /*  48 */
-  --space-16: 4rem;     /*  64 */
-  --space-24: 6rem;     /*  96 */
-  --space-32: 8rem;     /* 128 */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
 
   /* ---- Grid --------------------------------------------------------- */
   --grid-columns: 12;
-  --grid-gutter: var(--space-6);  /* 24px, constant at every breakpoint  */
-  --content-max: 90rem;           /* 1440px                              */
-  --page-margin: var(--space-8);  /* 32px; 64px at >=1200px              */
-  --nav-width: 14rem;             /* 224px fixed left column             */
-  --rule-width: 1px;              /* the ONLY separator in the system    */
+  --grid-gutter: var(--space-6);
+  --content-max: 90rem;
+  --page-margin: var(--space-8);
+  --nav-width: 15rem;
+  --rule-width: 1px;
 
-  /* ---- Colour: near-monochrome, one accent -------------------------- */
-  --color-ink: #111111;          /* body text                            */
-  --color-ink-muted: #6e6e6e;    /* 5.2:1 on white — AA for body         */
-  --color-ink-faint: #a3a3a3;    /* 2.5:1 — DISABLED/DECORATIVE ONLY     */
-  --color-rule: #e0e0e0;         /* hairlines, table borders             */
-  --color-rule-strong: #111111;  /* rule under a page/section heading    */
+  /* ---- Radius: glass surfaces only ---------------------------------- */
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 20px;
+  --radius-full: 999px;
+
+  /* ---- Light theme -------------------------------------------------- */
+  --color-ink: #0d0d0f;
+  --color-ink-muted: #5f6169;      /* 6.1:1 on the app background        */
+  --color-ink-faint: #9b9da6;      /* disabled/decorative only           */
+  --color-rule: rgba(13, 13, 15, 0.09);
+  --color-rule-strong: rgba(13, 13, 15, 0.85);
+
+  /* The page ground. The gradient is what the frosted panels refract —
+     glass over flat white reads as a grey box, not as glass. */
+  --color-canvas: #f4f5f7;
+  --color-canvas-gradient:
+    radial-gradient(60rem 40rem at 12% -8%, rgba(229, 38, 31, 0.07), transparent 60%),
+    radial-gradient(48rem 36rem at 92% 6%, rgba(11, 87, 208, 0.06), transparent 62%),
+    radial-gradient(40rem 40rem at 70% 100%, rgba(13, 13, 15, 0.05), transparent 60%);
+
+  /* Frosted panel surfaces. */
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-blur: 20px;
+  --glass-saturate: 180%;
+
   --color-surface: #ffffff;
-  --color-surface-alt: #f5f5f5;  /* zebra rows, inert fills              */
+  --color-surface-alt: rgba(13, 13, 15, 0.035);
 
-  --color-accent: #e5261f;       /* 4.5:1 — links, active nav, CTA, the
-                                    single chart series                  */
+  /* One accent — links, active nav, primary action, and the single chart
+     series. A second hue would dilute it and, for red-green colour
+     deficiency, wouldn't distinguish anything anyway. */
+  --color-accent: #e5261f;
   --color-accent-ink: #ffffff;
-  --color-accent-weak: #fdeceb;  /* callout ground only, never text      */
+  --color-accent-weak: rgba(229, 38, 31, 0.1);
 
-  /* Direction is carried by a glyph plus the accent, never by hue alone:
-     a second colour would break the monochrome discipline and fails for
-     the ~8% of men with a red-green deficiency anyway.                  */
+  /* Direction is carried by a glyph plus the accent, never hue alone. */
   --color-positive: var(--color-ink);
   --color-negative: var(--color-accent);
 
-  /* Accessibility overrides the palette: the focus ring must never be
-     confusable with the accent, so it is the one blue in the system.    */
+  /* Accessibility outranks the palette: the focus ring must never be
+     confusable with the accent, so it is the one blue in the system. */
   --color-focus: #0b57d0;
 
-  /* ---- Anti-ornament ------------------------------------------------ */
-  --radius: 0;      /* no rounded corners, anywhere                      */
-  --shadow: none;   /* separation is rules and whitespace                */
-  --motion-fast: 120ms;
-  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  /* ---- Depth: soft and low-contrast, never a hard drop shadow ------- */
+  --shadow-sm: 0 1px 2px rgba(13, 13, 15, 0.04),
+    0 1px 3px rgba(13, 13, 15, 0.05);
+  --shadow: 0 2px 4px rgba(13, 13, 15, 0.03),
+    0 8px 24px rgba(13, 13, 15, 0.07);
+  --shadow-lg: 0 4px 8px rgba(13, 13, 15, 0.04),
+    0 20px 48px rgba(13, 13, 15, 0.1);
+
+  /* ---- Motion ------------------------------------------------------- */
+  --motion-fast: 140ms;
+  --motion: 220ms;
+  --motion-slow: 380ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Dark theme -----------------------------------------------------
+   Applied by system preference, and overridable by an explicit data-theme
+   on the root element (the in-app toggle). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-ink: #f2f3f5;
+    --color-ink-muted: #a1a4ad;    /* 6.4:1 on the dark canvas           */
+    --color-ink-faint: #63666f;
+    --color-rule: rgba(255, 255, 255, 0.1);
+    --color-rule-strong: rgba(255, 255, 255, 0.82);
+
+    --color-canvas: #0b0b0d;
+    --color-canvas-gradient:
+      radial-gradient(60rem 40rem at 12% -8%, rgba(229, 38, 31, 0.14), transparent 60%),
+      radial-gradient(48rem 36rem at 92% 6%, rgba(11, 87, 208, 0.12), transparent 62%),
+      radial-gradient(40rem 40rem at 70% 100%, rgba(255, 255, 255, 0.05), transparent 60%);
+
+    --glass-bg: rgba(28, 29, 33, 0.58);
+    --glass-bg-strong: rgba(32, 33, 38, 0.76);
+    --glass-border: rgba(255, 255, 255, 0.1);
+
+    --color-surface: #141519;
+    --color-surface-alt: rgba(255, 255, 255, 0.045);
+
+    /* Lifted for contrast against the dark ground; the light-theme red
+       sits at roughly 3:1 here, below AA. */
+    --color-accent: #ff6259;
+    --color-accent-ink: #1a0605;
+    --color-accent-weak: rgba(255, 98, 89, 0.14);
+
+    --color-focus: #6ea8ff;
+
+    /* Shadow alone is nearly invisible on a dark ground, so depth comes
+       mostly from the border and the panel's own translucency. */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.35), 0 20px 48px rgba(0, 0, 0, 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-ink: #f2f3f5;
+  --color-ink-muted: #a1a4ad;
+  --color-ink-faint: #63666f;
+  --color-rule: rgba(255, 255, 255, 0.1);
+  --color-rule-strong: rgba(255, 255, 255, 0.82);
+
+  --color-canvas: #0b0b0d;
+  --color-canvas-gradient:
+    radial-gradient(60rem 40rem at 12% -8%, rgba(229, 38, 31, 0.14), transparent 60%),
+    radial-gradient(48rem 36rem at 92% 6%, rgba(11, 87, 208, 0.12), transparent 62%),
+    radial-gradient(40rem 40rem at 70% 100%, rgba(255, 255, 255, 0.05), transparent 60%);
+
+  --glass-bg: rgba(28, 29, 33, 0.58);
+  --glass-bg-strong: rgba(32, 33, 38, 0.76);
+  --glass-border: rgba(255, 255, 255, 0.1);
+
+  --color-surface: #141519;
+  --color-surface-alt: rgba(255, 255, 255, 0.045);
+
+  --color-accent: #ff6259;
+  --color-accent-ink: #1a0605;
+  --color-accent-weak: rgba(255, 98, 89, 0.14);
+
+  --color-focus: #6ea8ff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.35), 0 20px 48px rgba(0, 0, 0, 0.55);
 }
 
 @media (min-width: 1200px) {

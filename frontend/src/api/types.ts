@@ -36,6 +36,9 @@ export interface ChatRequest {
 export interface ChatResponse {
   response: string;
   tools_used: string[];
+  /** What the question was understood to be asking. "out_of_scope" means it
+   *  was refused before reaching the model. */
+  intent: string;
 }
 
 export interface AIHealthResponse {

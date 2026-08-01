@@ -3,10 +3,10 @@ import { useState } from "react";
 
 import { getTrends } from "../../api/analytics";
 import type { TrendGranularity } from "../../api/types";
-import { LineChart } from "../../components/charts/LineChart";
+import { LineTrendChart, TrendChart } from "../../components/charts/Chart";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { QueryState } from "../../components/QueryState";
-import { EmptyState, SegmentedControl } from "../../components/ui";
+import { EmptyState, Glass, SegmentedControl } from "../../components/ui";
 import { formatDate, formatNumber, formatPercent } from "../../lib/format";
 
 const GRANULARITY_OPTIONS = [
@@ -68,33 +68,52 @@ export function TrendsPage() {
           />
         ) : (
           <div className="stack-lg">
-            <section className="stack">
-              <h2>Reach</h2>
-              <LineChart
-                label="Reach over time"
-                valueLabel="Reach"
-                points={points.map((point) => ({
-                  label: formatDate(point.period_start),
-                  value: point.reach,
-                }))}
-              />
-            </section>
-
-            <section className="stack">
-              <h2>Followers</h2>
-              <LineChart
-                label="Follower count over time"
-                valueLabel="Followers"
-                points={points.map((point) => ({
-                  label: formatDate(point.period_start),
-                  value: point.followers_count,
-                }))}
-              />
+            <section className="grid">
+              <div className="col-6">
+                <TrendChart
+                  title="Reach"
+                  seriesName="Reach"
+                  points={points.map((point) => ({
+                    label: formatDate(point.period_start),
+                    value: point.reach,
+                  }))}
+                />
+              </div>
+              <div className="col-6">
+                <LineTrendChart
+                  title="Followers"
+                  seriesName="Followers"
+                  points={points.map((point) => ({
+                    label: formatDate(point.period_start),
+                    value: point.followers_count,
+                  }))}
+                />
+              </div>
+              <div className="col-6">
+                <TrendChart
+                  title="Impressions"
+                  seriesName="Impressions"
+                  points={points.map((point) => ({
+                    label: formatDate(point.period_start),
+                    value: point.impressions,
+                  }))}
+                />
+              </div>
+              <div className="col-6">
+                <LineTrendChart
+                  title="Average engagement rate"
+                  seriesName="Engagement %"
+                  points={points.map((point) => ({
+                    label: formatDate(point.period_start),
+                    value: point.average_engagement_rate,
+                  }))}
+                />
+              </div>
             </section>
 
             <section className="stack">
               <h2>Breakdown</h2>
-              <div className="table-scroll">
+              <Glass className="table-scroll">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -135,7 +154,7 @@ export function TrendsPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </Glass>
             </section>
           </div>
         )}

@@ -133,7 +133,7 @@ start immediately.
 > silently.
 
 The full variable reference — what is required, what is optional, and what
-each does — is in [`.env.example`](.env.example) itself.
+each does — is in [`.env.example`](../.env.example) itself.
 
 Optional integrations:
 

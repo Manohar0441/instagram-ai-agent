@@ -77,7 +77,7 @@ export function ConnectInstagramPage() {
 
   return (
     <div className="centered">
-      <div className="centered__panel centered__panel--wide">
+      <div className="centered__panel centered__panel--wide glass">
         <div className="centered__brand">Instalysis</div>
 
         <div className="stack-lg">

@@ -3,11 +3,18 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { getAccountAnalytics, getDashboard } from "../../api/analytics";
-import { LineChart } from "../../components/charts/LineChart";
+import { TrendChart } from "../../components/charts/Chart";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { MediaTable } from "../../components/MediaTable";
 import { QueryState } from "../../components/QueryState";
-import { EmptyState, SegmentedControl, StatBlock } from "../../components/ui";
+import {
+  Button,
+  EmptyState,
+  Glass,
+  SegmentedControl,
+  SkeletonCards,
+  StatCard,
+} from "../../components/ui";
 import {
   formatDate,
   formatNumber,
@@ -21,23 +28,30 @@ const DAY_OPTIONS = [
   { value: "90", label: "90 days" },
 ] as const;
 
+type Direction = "up" | "down" | "flat";
+
+function directionOf(value: number | null | undefined): Direction | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (value > 0) return "up";
+  if (value < 0) return "down";
+  return "flat";
+}
+
 export function OverviewPage() {
   const [days, setDays] = useState<"7" | "30" | "90">("30");
 
-  // The dashboard endpoint answers the hero in a single call; the account
-  // query only exists so the day-window selector can change the numbers
-  // without refetching top content and trends alongside them.
-  const dashboard = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: getDashboard,
-  });
-
+  // One call answers the hero. The account query exists separately so the
+  // day-window selector can change those numbers without refetching top
+  // content and the trend alongside them.
+  const dashboard = useQuery({ queryKey: ["dashboard"], queryFn: getDashboard });
   const account = useQuery({
     queryKey: ["account-analytics", days],
     queryFn: () => getAccountAnalytics(Number(days)),
   });
 
   const growth = account.data?.follower_growth ?? null;
+  const trend = dashboard.data?.recent_trend ?? [];
+  const isLoading = dashboard.isLoading || account.isLoading;
 
   return (
     <>
@@ -59,112 +73,150 @@ export function OverviewPage() {
         }
       />
 
-      <QueryState
-        isLoading={dashboard.isLoading || account.isLoading}
-        error={dashboard.error ?? account.error}
-        loadingLabel="Loading your analytics"
-      >
-        {account.data && (
-          <div className="stack-lg">
-            <section className="grid">
-              <div className="col-3">
-                <StatBlock
-                  label="Followers"
-                  value={formatNumber(account.data.followers_count)}
-                  delta={growth ? formatSigned(growth.absolute) : undefined}
-                  deltaDirection={
-                    growth
-                      ? growth.absolute > 0
-                        ? "up"
-                        : growth.absolute < 0
-                          ? "down"
-                          : "flat"
-                      : undefined
-                  }
-                />
-              </div>
-              <div className="col-3">
-                <StatBlock label="Reach" value={formatNumber(account.data.reach)} />
-              </div>
-              <div className="col-3">
-                <StatBlock
-                  label="Engagement rate"
-                  value={formatPercent(account.data.engagement_rate)}
-                />
-              </div>
-              <div className="col-3">
-                <StatBlock label="Posts" value={formatNumber(account.data.media_count)} />
-              </div>
-            </section>
-
-            <section className="grid">
-              <div className="col-3">
-                <StatBlock
-                  label="Impressions"
-                  value={formatNumber(account.data.impressions)}
-                />
-              </div>
-              <div className="col-3">
-                <StatBlock
-                  label="Profile visits"
-                  value={formatNumber(account.data.profile_visits)}
-                />
-              </div>
-              <div className="col-3">
-                <StatBlock
-                  label="Accounts reached"
-                  value={formatNumber(account.data.accounts_reached)}
-                />
-              </div>
-              <div className="col-3">
-                <StatBlock
-                  label="Accounts engaged"
-                  value={formatNumber(account.data.accounts_engaged)}
-                />
-              </div>
-            </section>
-
-            {dashboard.data && dashboard.data.recent_trend.length > 0 && (
-              <section className="stack">
-                <h2>Reach over time</h2>
-                <LineChart
-                  label="Reach over the recent period"
-                  valueLabel="Reach"
-                  points={dashboard.data.recent_trend.map((point) => ({
-                    label: formatDate(point.period_start),
-                    value: point.reach,
-                  }))}
-                />
-                <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                  <Link to="/trends">See weekly and monthly trends</Link>
-                </p>
+      {isLoading ? (
+        <div className="stack-lg">
+          <SkeletonCards count={4} />
+          <SkeletonCards count={4} />
+        </div>
+      ) : (
+        <QueryState
+          isLoading={false}
+          error={dashboard.error ?? account.error}
+          loadingLabel="Loading your analytics"
+        >
+          {account.data && (
+            <div className="stack-lg">
+              <section className="grid">
+                <div className="col-3">
+                  <StatCard
+                    label="Followers"
+                    icon="◎"
+                    value={formatNumber(account.data.followers_count)}
+                    delta={growth ? formatSigned(growth.absolute) : undefined}
+                    direction={directionOf(growth?.absolute)}
+                    note="No growth data yet"
+                    tooltip="Total followers, with the change across the selected window."
+                    sparkline={trend.map((point) => point.followers_count)}
+                  />
+                </div>
+                <div className="col-3">
+                  <StatCard
+                    label="Reach"
+                    icon="◈"
+                    value={formatNumber(account.data.reach)}
+                    tooltip="Unique accounts that saw your content in this window."
+                    sparkline={trend.map((point) => point.reach)}
+                  />
+                </div>
+                <div className="col-3">
+                  <StatCard
+                    label="Engagement rate"
+                    icon="◆"
+                    value={formatPercent(account.data.engagement_rate)}
+                    tooltip="Interactions normalised by reach — a small, highly engaged audience can beat a large passive one."
+                    sparkline={trend.map((point) => point.average_engagement_rate)}
+                  />
+                </div>
+                <div className="col-3">
+                  <StatCard
+                    label="Posts"
+                    icon="▦"
+                    value={formatNumber(account.data.media_count)}
+                    tooltip="Total posts on the account."
+                  />
+                </div>
               </section>
-            )}
 
-            <section className="stack">
-              <h2>Top performing posts</h2>
-              {dashboard.data && dashboard.data.top_content.length > 0 ? (
-                <>
-                  <MediaTable items={dashboard.data.top_content} />
-                  <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                    <Link to="/top-content">Rank by other metrics</Link>
-                  </p>
-                </>
-              ) : (
-                <EmptyState
-                  title="No posts analysed yet"
-                  body={
-                    <>
-                      Sync your posts and insights from{" "}
-                      <Link to="/settings">Settings</Link> to see rankings here.
-                    </>
-                  }
-                />
+              <section className="grid">
+                <div className="col-3">
+                  <StatCard
+                    label="Impressions"
+                    icon="◉"
+                    value={formatNumber(account.data.impressions)}
+                    tooltip="Total views, including repeat views by the same account."
+                    sparkline={trend.map((point) => point.impressions)}
+                  />
+                </div>
+                <div className="col-3">
+                  <StatCard
+                    label="Profile visits"
+                    icon="◐"
+                    value={formatNumber(account.data.profile_visits)}
+                    tooltip="Times your profile was opened in this window."
+                    sparkline={trend.map((point) => point.profile_visits)}
+                  />
+                </div>
+                <div className="col-3">
+                  <StatCard
+                    label="Accounts reached"
+                    icon="◑"
+                    value={formatNumber(account.data.accounts_reached)}
+                  />
+                </div>
+                <div className="col-3">
+                  <StatCard
+                    label="Accounts engaged"
+                    icon="◒"
+                    value={formatNumber(account.data.accounts_engaged)}
+                  />
+                </div>
+              </section>
+
+              {trend.length > 0 && (
+                <section className="grid">
+                  <div className="col-8">
+                    <TrendChart
+                      title="Reach over time"
+                      seriesName="Reach"
+                      points={trend.map((point) => ({
+                        label: formatDate(point.period_start),
+                        value: point.reach,
+                      }))}
+                      caption={
+                        <>
+                          Gaps are days with no recorded measurement, not days
+                          with zero reach. <Link to="/trends">See all trends</Link>
+                        </>
+                      }
+                    />
+                  </div>
+                  <div className="col-4">
+                    <TrendChart
+                      title="Followers"
+                      seriesName="Followers"
+                      points={trend.map((point) => ({
+                        label: formatDate(point.period_start),
+                        value: point.followers_count,
+                      }))}
+                    />
+                  </div>
+                </section>
               )}
-            </section>
-          </div>
-        )}
-      </QueryState>
+
+              <section className="stack">
+                <h2>Top performing posts</h2>
+                {dashboard.data && dashboard.data.top_content.length > 0 ? (
+                  <Glass>
+                    <MediaTable items={dashboard.data.top_content} />
+                  </Glass>
+                ) : (
+                  <EmptyState
+                    title="No posts analysed yet"
+                    body="Rankings need posts with measured insights. Sync from Instagram to pull them in."
+                    actions={
+                      <Link to="/settings">
+                        <Button variant="primary" small>
+                          Go to Settings
+                        </Button>
+                      </Link>
+                    }
+                  />
+                )}
+              </section>
+            </div>
+          )}
+        </QueryState>
+      )}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth";
+import { useTheme } from "../../hooks/useTheme";
 import { Button } from "../ui";
 import "./layout.css";
 
@@ -27,11 +28,15 @@ const NAV_GROUPS = [
 
 export function AppShell() {
   const { signOut } = useAuth();
+  const { isDark, toggle } = useTheme();
 
   return (
     <div className="shell">
-      <nav className="nav" aria-label="Main">
+      <nav className="nav glass" aria-label="Main">
         <NavLink to="/dashboard" className="nav__brand">
+          <span className="nav__mark" aria-hidden="true">
+            I
+          </span>
           Instalysis
         </NavLink>
 
@@ -61,9 +66,19 @@ export function AppShell() {
           >
             Settings
           </NavLink>
-          <Button variant="quiet" small onClick={signOut}>
-            Sign out
-          </Button>
+          <div className="nav__utility">
+            <Button
+              variant="quiet"
+              small
+              onClick={toggle}
+              aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+            >
+              {isDark ? "☀ Light" : "☾ Dark"}
+            </Button>
+            <Button variant="quiet" small onClick={signOut}>
+              Sign out
+            </Button>
+          </div>
         </div>
       </nav>
 

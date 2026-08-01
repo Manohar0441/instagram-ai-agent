@@ -3,28 +3,29 @@ import { useQuery } from "@tanstack/react-query";
 import { getRecommendations } from "../../api/insights";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { QueryState } from "../../components/QueryState";
+import { Glass } from "../../components/ui";
 import { formatDateTime } from "../../lib/format";
 import "./ai.css";
 
 function ListBlock({ label, items }: { label: string; items: string[] }) {
   return (
-    <section className="list-block">
+    <Glass as="section" className="list-block">
       <h2 className="list-block__label">{label}</h2>
       <ul>
         {items.map((item, index) => (
           <li key={index}>{item}</li>
         ))}
       </ul>
-    </section>
+    </Glass>
   );
 }
 
 function TextBlock({ label, text }: { label: string; text: string }) {
   return (
-    <section className="list-block">
+    <Glass as="section" className="list-block">
       <h2 className="list-block__label">{label}</h2>
       <p>{text}</p>
-    </section>
+    </Glass>
   );
 }
 

@@ -6,7 +6,7 @@ import { getMediaAnalytics } from "../../api/analytics";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { MediaTable } from "../../components/MediaTable";
 import { QueryState } from "../../components/QueryState";
-import { EmptyState, SegmentedControl } from "../../components/ui";
+import { EmptyState, Glass, SegmentedControl } from "../../components/ui";
 
 const TYPE_OPTIONS = [
   { value: "", label: "All" },
@@ -64,10 +64,12 @@ export function MediaPage() {
           />
         ) : (
           <div className="stack">
-            <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+            <p className="muted text-sm">
               {items.length} post{items.length === 1 ? "" : "s"}
             </p>
-            <MediaTable items={items} />
+            <Glass>
+              <MediaTable items={items} />
+            </Glass>
           </div>
         )}
       </QueryState>

@@ -3,12 +3,12 @@ import { useState } from "react";
 
 import { getTopContent } from "../../api/analytics";
 import type { TopContentMetric, TopContentOrder } from "../../api/types";
-import { BarChart } from "../../components/charts/BarChart";
+import { RankBarChart } from "../../components/charts/Chart";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { MediaTable } from "../../components/MediaTable";
 import { QueryState } from "../../components/QueryState";
-import { EmptyState, SegmentedControl } from "../../components/ui";
-import { formatNumber, formatPercent, truncate } from "../../lib/format";
+import { EmptyState, Glass, SegmentedControl } from "../../components/ui";
+import { truncate } from "../../lib/format";
 
 const METRIC_OPTIONS = [
   { value: "engagement_rate", label: "Engagement" },
@@ -71,25 +71,24 @@ export function TopContentPage() {
           />
         ) : (
           <div className="stack-lg">
-            <section className="stack">
-              <h2>
-                {order === "top" ? "Highest" : "Lowest"} by{" "}
-                {METRIC_OPTIONS.find((option) => option.value === metric)?.label.toLowerCase()}
-              </h2>
-              <BarChart
-                format={isRate ? (value) => formatPercent(value) : formatNumber}
-                data={items.map((item) => ({
-                  label: truncate(item.caption, 40),
-                  value: isRate
-                    ? item.engagement_rate
-                    : (item[metric as keyof typeof item] as number | null),
-                }))}
-              />
-            </section>
+            <RankBarChart
+              title={`${order === "top" ? "Highest" : "Lowest"} by ${
+                METRIC_OPTIONS.find((option) => option.value === metric)?.label.toLowerCase()
+              }`}
+              points={items.map((item) => ({
+                label: truncate(item.caption, 28),
+                value: isRate
+                  ? item.engagement_rate
+                  : (item[metric as keyof typeof item] as number | null),
+              }))}
+              caption="The leading post is highlighted; the rest recede, so the ranking reads without a legend."
+            />
 
             <section className="stack">
               <h2>Detail</h2>
-              <MediaTable items={items} />
+              <Glass>
+                <MediaTable items={items} />
+              </Glass>
             </section>
           </div>
         )}

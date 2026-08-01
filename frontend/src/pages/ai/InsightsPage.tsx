@@ -4,12 +4,13 @@ import { getInsights } from "../../api/insights";
 import type { Insight } from "../../api/types";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { QueryState } from "../../components/QueryState";
+import { Glass } from "../../components/ui";
 import { formatDateTime } from "../../lib/format";
 import "./ai.css";
 
 function InsightCard({ insight }: { insight: Insight }) {
   return (
-    <article className="insight">
+    <Glass as="article" className="insight">
       <h2 className="insight__title">{insight.title}</h2>
       <p className="insight__summary">{insight.summary}</p>
 
@@ -22,7 +23,7 @@ function InsightCard({ insight }: { insight: Insight }) {
           {JSON.stringify(insight.supporting_data, null, 2)}
         </pre>
       </details>
-    </article>
+    </Glass>
   );
 }
 

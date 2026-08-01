@@ -1,5 +1,4 @@
-/* Reset, element defaults, and the rules that keep the Swiss discipline
- * honest: flush-left type, tabular figures, always-visible focus. */
+/* Reset, element defaults, and the primitives the glass system is built on. */
 
 *,
 *::before,
@@ -17,7 +16,10 @@ html {
 }
 
 body {
-  background: var(--color-surface);
+  min-height: 100vh;
+  background-color: var(--color-canvas);
+  background-image: var(--color-canvas-gradient);
+  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -26,41 +28,35 @@ body {
      at these measures and is the fastest way to stop looking Swiss. */
   text-align: left;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1,
 h2,
 h3,
 h4 {
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   line-height: var(--leading-tight);
-}
-
-h1 {
-  font-size: var(--text-xl);
   letter-spacing: var(--tracking-tight);
 }
 
-h2 {
-  font-size: var(--text-lg);
-}
-
-h3 {
-  font-size: var(--text-base);
-}
+h1 { font-size: var(--text-xl); }
+h2 { font-size: var(--text-lg); }
+h3 { font-size: var(--text-base); }
 
 p {
-  /* A measure past ~66 characters costs the reader the line return. */
+  /* Past ~66 characters the reader starts losing the line return. */
   max-width: 66ch;
   text-wrap: pretty;
 }
 
-/* Colour is never the sole carrier of meaning: #e5261f on white clears AA
-   at exactly the margin, so links are underlined too. */
+/* Colour is never the sole carrier of meaning, so links are underlined. */
 a {
   color: var(--color-accent);
   text-decoration: underline;
   text-underline-offset: 0.15em;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-thickness var(--motion-fast) var(--ease);
 }
 
 a:hover {
@@ -73,13 +69,12 @@ select,
 textarea {
   font: inherit;
   color: inherit;
-  border-radius: var(--radius);
 }
 
 ul,
 ol {
   list-style-position: outside;
-  padding-left: var(--space-4);
+  padding-left: var(--space-5);
 }
 
 table {
@@ -111,7 +106,82 @@ svg {
 *:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
+
+::selection {
+  background: var(--color-accent-weak);
+}
+
+/* Scrollbars, so a dark theme doesn't get a bright system scrollbar. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-faint) transparent;
+}
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--color-rule);
+  border-radius: var(--radius-full);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background-color: var(--color-ink-faint); }
+
+/* ------------------------------------------------------------- glass */
+
+/* The core surface. `backdrop-filter` is the whole effect — without it the
+   translucent background just reads as a flat tint, so the fallback below
+   compensates with an opaque background instead. */
+.glass {
+  background: var(--glass-bg);
+  border: var(--rule-width) solid var(--glass-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow);
+}
+
+.glass-strong {
+  background: var(--glass-bg-strong);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass,
+  .glass-strong {
+    background: var(--color-surface);
+  }
+}
+
+/* Interactive panels lift slightly on hover. Transform only — animating
+   backdrop-filter forces a repaint of everything behind the panel. */
+.glass-interactive {
+  transition:
+    transform var(--motion) var(--ease-out),
+    box-shadow var(--motion) var(--ease-out),
+    border-color var(--motion) var(--ease-out);
+}
+
+.glass-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ------------------------------------------------------------- type */
+
+.eyebrow {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.muted { color: var(--color-ink-muted); }
+.mono { font-family: var(--font-mono); }
+.text-sm { font-size: var(--text-sm); }
+.text-xs { font-size: var(--text-xs); }
 
 .visually-hidden {
   position: absolute;
@@ -125,21 +195,38 @@ svg {
   border: 0;
 }
 
-/* Utility type styles used across pages. */
-.eyebrow {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  color: var(--color-ink-muted);
+/* ---------------------------------------------------------- motion */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 
-.muted {
-  color: var(--color-ink-muted);
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.mono {
-  font-family: var(--font-mono);
+@keyframes shimmer {
+  to { background-position-x: -200%; }
+}
+
+.animate-in {
+  animation: fade-up var(--motion-slow) var(--ease-out) both;
+}
+
+/* Skeletons: a moving highlight over an inert block, so a loading screen
+   keeps the layout it will settle into rather than collapsing to a spinner. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-alt) 8%,
+    var(--color-rule) 18%,
+    var(--color-surface-alt) 33%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -150,5 +237,9 @@ svg {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .glass-interactive:hover {
+    transform: none;
   }
 }
