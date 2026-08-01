@@ -1,13 +1,13 @@
 from app.core.settings import settings
 from app.integrations.ai_agent import build_agent_graph, run_agent
 from app.schemas.ai import AIHealthResponse, ChatResponse
+from app.services.ai_credential_service import AICredentialService
 from app.services.ai_generation import (
     AIGenerationError,
     AINotConfiguredError,
     AIProviderError,
     ProviderError,
     build_llm,
-    ensure_configured,
 )
 from app.services.ai_prompts import SYSTEM_PROMPT
 from app.services.ai_tools import build_tools
@@ -26,16 +26,21 @@ class AIService:
     agent itself only ever talks to AnalyticsService, never a repository.
     """
 
-    def __init__(self, analytics_service: AnalyticsService) -> None:
-        """Initialize the service with its analytics dependency."""
+    def __init__(
+        self,
+        analytics_service: AnalyticsService,
+        credential_service: AICredentialService,
+    ) -> None:
+        """Initialize the service with its analytics and credential dependencies."""
         self.analytics_service = analytics_service
+        self.credential_service = credential_service
 
     def chat(self, user_id: int, message: str) -> ChatResponse:
         """Answer a natural language analytics question for the given user."""
-        ensure_configured()
+        api_key = self.credential_service.resolve_api_key(user_id)
 
         tools = build_tools(self.analytics_service, user_id)
-        graph = build_agent_graph(build_llm(), tools)
+        graph = build_agent_graph(build_llm(api_key), tools)
 
         try:
             response_text, tools_used = run_agent(
@@ -49,12 +54,16 @@ class AIService:
 
         return ChatResponse(response=response_text, tools_used=tools_used)
 
-    def health_check(self) -> AIHealthResponse:
-        """Report whether the AI service is configured and ready to serve requests."""
-        configured = bool(settings.GOOGLE_API_KEY)
+    def health_check(self, user_id: int) -> AIHealthResponse:
+        """Report whether the AI service is configured and ready for this user."""
+        status = self.credential_service.get_status(user_id)
         return AIHealthResponse(
-            status="ok" if configured else "unavailable",
-            model=settings.GEMINI_MODEL,
-            configured=configured,
-            details=None if configured else "GOOGLE_API_KEY is not configured.",
+            status="ok" if status.configured else "unavailable",
+            model=status.model,
+            configured=status.configured,
+            details=(
+                None
+                if status.configured
+                else "No Gemini API key is configured for this user."
+            ),
         )

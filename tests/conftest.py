@@ -17,6 +17,7 @@ from sqlalchemy.pool import StaticPool
 
 import app.integrations.redis_client as redis_client_module
 import app.integrations.task_queue as task_queue_module
+import app.services.ai_credential_service as credential_module
 import app.services.insights_service as insights_module
 import app.services.recommendation_service as recommendation_module
 import app.services.report_service as report_module
@@ -144,10 +145,16 @@ def _reset_rate_limiter():
 def _configure_ai(monkeypatch):
     """Default every test to a configured-looking AI setup.
 
-    Tests that specifically exercise the unconfigured path override this
-    with monkeypatch themselves.
+    GOOGLE_API_KEY acts as the server-wide fallback, so every test user
+    resolves a key without storing one. Tests that specifically exercise
+    the unconfigured path override this with monkeypatch themselves.
+
+    Storing a key normally probes the real Gemini API; that is stubbed out
+    here so no test reaches the network. Tests for the rejection path
+    override it themselves.
     """
     monkeypatch.setattr(settings, "GOOGLE_API_KEY", "test-key")
+    monkeypatch.setattr(credential_module, "verify_api_key", lambda api_key: None)
 
 
 def _build_client(session_factory, raise_server_exceptions: bool):
@@ -454,7 +461,7 @@ def fake_structured_llm(monkeypatch):
     })
 
     for module in (insights_module, recommendation_module, report_module):
-        monkeypatch.setattr(module, "build_llm", lambda: llm)
+        monkeypatch.setattr(module, "build_llm", lambda api_key: llm)
     return llm
 
 

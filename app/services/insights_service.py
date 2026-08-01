@@ -5,7 +5,8 @@ from app.core.settings import settings
 from app.integrations.ai_agent import generate_structured_response
 from app.schemas.analytics import MediaAnalyticsResponse
 from app.schemas.insights import Insight, InsightNarratives, PerformanceInsightsResponse
-from app.services.ai_generation import AIProviderError, ProviderError, build_llm, ensure_configured
+from app.services.ai_credential_service import AICredentialService
+from app.services.ai_generation import AIProviderError, ProviderError, build_llm
 from app.services.analytics_service import AnalyticsService
 from app.services.insight_prompts import INSIGHTS_SYSTEM_PROMPT, build_insights_user_prompt
 from app.utils.cache import get_or_generate
@@ -24,9 +25,14 @@ class InsightsService:
     from AnalyticsService, never from the model.
     """
 
-    def __init__(self, analytics_service: AnalyticsService) -> None:
-        """Initialize the service with its analytics dependency."""
+    def __init__(
+        self,
+        analytics_service: AnalyticsService,
+        credential_service: AICredentialService,
+    ) -> None:
+        """Initialize the service with its analytics and credential dependencies."""
         self.analytics_service = analytics_service
+        self.credential_service = credential_service
 
     def get_insights(
         self, user_id: int, days: int = DEFAULT_INSIGHTS_LOOKBACK_DAYS
@@ -45,7 +51,7 @@ class InsightsService:
         )
 
     def _generate_insights(self, user_id: int, days: int) -> PerformanceInsightsResponse:
-        ensure_configured()
+        api_key = self.credential_service.resolve_api_key(user_id)
 
         account = self.analytics_service.get_account_analytics(user_id, days=days)
         media = self.analytics_service.get_media_analytics(user_id, limit=MEDIA_SAMPLE_LIMIT)
@@ -63,7 +69,7 @@ class InsightsService:
 
         try:
             narratives = generate_structured_response(
-                build_llm(),
+                build_llm(api_key),
                 INSIGHTS_SYSTEM_PROMPT,
                 build_insights_user_prompt(context),
                 InsightNarratives,

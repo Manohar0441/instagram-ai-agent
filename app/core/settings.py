@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed browser origins for CORS.
     CORS_ALLOWED_ORIGINS: str = "http://localhost:3000"
 
+    # Base URL of the Instalysis frontend. The Instagram OAuth callback
+    # redirects the browser back here, since returning JSON would dead-end
+    # the user on a blank page. Must be one of CORS_ALLOWED_ORIGINS.
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # slowapi rate-limit strings, e.g. "100/minute". STRICT applies to
     # expensive AI-backed endpoints, AUTH to login/register.
     RATE_LIMIT_DEFAULT: str = "100/minute"

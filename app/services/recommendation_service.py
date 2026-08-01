@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 from app.core.settings import settings
 from app.integrations.ai_agent import generate_structured_response
 from app.schemas.insights import RecommendationNarratives, RecommendationsResponse
-from app.services.ai_generation import AIProviderError, ProviderError, build_llm, ensure_configured
+from app.services.ai_credential_service import AICredentialService
+from app.services.ai_generation import AIProviderError, ProviderError, build_llm
 from app.services.analytics_service import AnalyticsService
 from app.services.insight_prompts import RECOMMENDATIONS_SYSTEM_PROMPT, build_recommendations_user_prompt
 from app.utils.analytics_calculations import as_aware_utc
@@ -23,9 +24,14 @@ class RecommendationService:
     ideas, grounded in the account's own top-performing posts.
     """
 
-    def __init__(self, analytics_service: AnalyticsService) -> None:
-        """Initialize the service with its analytics dependency."""
+    def __init__(
+        self,
+        analytics_service: AnalyticsService,
+        credential_service: AICredentialService,
+    ) -> None:
+        """Initialize the service with its analytics and credential dependencies."""
         self.analytics_service = analytics_service
+        self.credential_service = credential_service
 
     def get_recommendations(
         self, user_id: int, days: int = DEFAULT_RECOMMENDATIONS_LOOKBACK_DAYS
@@ -44,7 +50,7 @@ class RecommendationService:
         )
 
     def _generate_recommendations(self, user_id: int, days: int) -> RecommendationsResponse:
-        ensure_configured()
+        api_key = self.credential_service.resolve_api_key(user_id)
 
         media = self.analytics_service.get_media_analytics(user_id, limit=MEDIA_SAMPLE_LIMIT)
         top_content = self.analytics_service.get_top_content(
@@ -66,7 +72,7 @@ class RecommendationService:
 
         try:
             narratives = generate_structured_response(
-                build_llm(),
+                build_llm(api_key),
                 RECOMMENDATIONS_SYSTEM_PROMPT,
                 build_recommendations_user_prompt(context),
                 RecommendationNarratives,
