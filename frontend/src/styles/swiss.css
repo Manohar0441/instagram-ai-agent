@@ -1,0 +1,618 @@
+/* ==========================================================================
+   PREMIUM SWISS + NEO BRUTALISM LOGIN
+   Part 1 of 4
+   Replace your current swiss.css by combining Parts 1–4.
+   ========================================================================== */
+
+:root{
+  --bg:#F7F7F5;
+  --surface:#FFFFFF;
+  --text:#101010;
+  --muted:#6D6D6D;
+  --line:#D8D8D8;
+  --accent:#DA291C;
+  --shadow:#111111;
+  --radius:0;
+  --transition:all .18s cubic-bezier(.22,1,.36,1);
+  --space-1:8px;
+  --space-2:16px;
+  --space-3:24px;
+  --space-4:32px;
+  --space-5:40px;
+  --space-6:48px;
+  --space-7:64px;
+  --space-8:80px;
+}
+
+*,
+*::before,
+*::after{box-sizing:border-box}
+
+html,body,#root{
+  width:100%;
+  min-height:100%;
+  margin:0;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:Inter,"Neue Haas Grotesk Text","Helvetica Neue",Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.025;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(0,0,0,.04) 0 1px, transparent 1px);
+  background-size:12px 12px;
+}
+
+.swiss-layout{
+  display:grid;
+  grid-template-columns:minmax(420px,28%) 1fr;
+  min-height:100vh;
+  background:var(--bg);
+}
+
+.swiss-sidebar{
+  position:relative;
+  overflow:hidden;
+  border-right:2px solid var(--line);
+  background:var(--bg);
+  display:flex;
+  flex-direction:column;
+}
+
+.swiss-sidebar::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(rgba(0,0,0,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,.03) 1px, transparent 1px);
+  background-size:80px 80px;
+  pointer-events:none;
+}
+
+.swiss-brand{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:48px;
+  font-size:1.25rem;
+  font-weight:800;
+  letter-spacing:-.03em;
+}
+
+.swiss-crosshair-container{
+  position:absolute;
+  inset:0 0 240px 0;
+}
+
+.crosshair-line-h,
+.crosshair-line-v{
+  position:absolute;
+  background:var(--line);
+}
+
+.crosshair-line-h{
+  left:0;right:0;top:42%;
+  height:2px;
+}
+
+.crosshair-line-v{
+  top:14%;bottom:0;left:68%;
+  width:2px;
+}
+
+.crosshair-node{
+  position:absolute;
+  top:42%;
+  left:68%;
+  width:10px;
+  height:10px;
+  background:#111;
+  transform:translate(-50%,-50%);
+}
+
+.swiss-sidebar-bottom{
+  margin-top:auto;
+  min-height:38vh;
+  background:var(--accent);
+  color:#fff;
+  padding:48px;
+  display:flex;
+  align-items:flex-end;
+}
+
+.sidebar-quote{
+  margin:0;
+  font-size:1.25rem;
+  line-height:1.4;
+  font-weight:500;
+}
+
+.swiss-main{
+  position:relative;
+  background:
+    linear-gradient(rgba(0,0,0,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,.025) 1px, transparent 1px),
+    var(--bg);
+  background-size:80px 80px;
+}
+
+@media (max-width:960px){
+  .swiss-layout{
+    grid-template-columns:1fr;
+  }
+  .swiss-sidebar{
+    display:none;
+  }
+}.swiss-top-right{
+  position:absolute;
+  top:40px;
+  right:48px;
+}
+
+.lang-selector{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 14px;
+  border:2px solid #111;
+  background:#fff;
+  font-size:.85rem;
+  font-weight:700;
+  cursor:pointer;
+  transition:var(--transition);
+}
+
+.lang-selector:hover{
+  transform:translate(-3px,-3px);
+  box-shadow:6px 6px 0 #111;
+}
+
+.swiss-content{
+  width:min(720px,100%);
+  margin:auto;
+  padding:80px;
+}
+
+.swiss-header-block{
+  margin-bottom:56px;
+}
+
+.swiss-title{
+  margin:0;
+  font-size:92px;
+  line-height:.94;
+  font-weight:800;
+  letter-spacing:-.06em;
+}
+
+.swiss-subtitle{
+  margin-top:18px;
+  color:var(--muted);
+  font-size:1.2rem;
+  line-height:1.6;
+}
+
+.swiss-callout{
+  margin-bottom:24px;
+  padding:18px 22px;
+  border:2px solid #111;
+  background:#111;
+  color:#fff;
+  box-shadow:8px 8px 0 var(--accent);
+}
+
+.swiss-callout--error{
+  background:var(--accent);
+  box-shadow:8px 8px 0 #111;
+}
+
+.swiss-form{
+  display:flex;
+  flex-direction:column;
+  gap:28px;
+}
+
+.swiss-field-group label{
+  display:block;
+  margin-bottom:10px;
+  font-size:.85rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.swiss-input-wrapper{
+  position:relative;
+  display:flex;
+  align-items:center;
+  border:2px solid #111;
+  background:#fff;
+  transition:var(--transition);
+}
+
+.swiss-input-wrapper:hover{
+  transform:translate(-2px,-2px);
+  box-shadow:4px 4px 0 #111;
+}
+
+.swiss-input-wrapper:focus-within{
+  transform:translate(-4px,-4px);
+  box-shadow:8px 8px 0 var(--accent);
+}
+
+.swiss-input-wrapper input{
+  width:100%;
+  height:72px;
+  border:none;
+  outline:none;
+  background:transparent;
+  color:#111;
+  padding:0 62px;
+  font-size:1.05rem;
+  font-weight:500;
+}
+
+.swiss-input-wrapper input::placeholder{
+  color:#9a9a9a;
+}
+
+.icon-left{
+  position:absolute;
+  left:22px;
+  display:flex;
+  align-items:center;
+  color:#444;
+  pointer-events:none;
+}
+
+.icon-right{
+  position:absolute;
+  right:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:40px;
+  height:40px;
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  color:#444;
+  transition:var(--transition);
+}
+
+.icon-right:hover{
+  color:#111;
+  transform:scale(1.08);
+}
+
+@media (max-width:960px){
+
+  .swiss-content{
+    padding:56px 28px;
+  }
+
+  .swiss-title{
+    font-size:64px;
+  }
+
+  .swiss-input-wrapper input{
+    height:64px;
+  }
+
+  .swiss-top-right{
+    right:24px;
+    top:24px;
+  }
+}
+/* ==========================================================================
+   PREMIUM SWISS + NEO BRUTALISM LOGIN
+   Part 3 of 4
+   Buttons, divider, footer, interactions
+   ========================================================================== */
+
+.swiss-button{
+  position:relative;
+  width:100%;
+  height:76px;
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  border:2px solid #111;
+  background:var(--accent);
+  color:#fff;
+  font-size:1.1rem;
+  font-weight:800;
+  letter-spacing:-.02em;
+  cursor:pointer;
+  box-shadow:10px 10px 0 #111;
+  transition:var(--transition);
+}
+
+.swiss-button:hover:not(:disabled){
+  transform:translate(-6px,-6px);
+  box-shadow:16px 16px 0 #111;
+}
+
+.swiss-button:active:not(:disabled){
+  transform:translate(-2px,-2px);
+  box-shadow:6px 6px 0 #111;
+}
+
+.swiss-button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+.button-arrow{
+  position:absolute;
+  right:28px;
+  transition:transform .18s ease;
+}
+
+.swiss-button:hover .button-arrow{
+  transform:translateX(6px);
+}
+
+.swiss-divider{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  gap:24px;
+  margin:48px 0;
+}
+
+.swiss-divider::before,
+.swiss-divider::after{
+  content:"";
+  height:2px;
+  background:var(--line);
+}
+
+.swiss-divider span{
+  color:var(--muted);
+  font-size:.85rem;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.swiss-footer{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+  margin-top:8px;
+  font-size:1rem;
+}
+
+.footer-text{
+  color:var(--muted);
+}
+
+.swiss-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:#111;
+  text-decoration:none;
+  font-weight:800;
+  border-bottom:2px solid #111;
+  padding-bottom:2px;
+  transition:var(--transition);
+}
+
+.swiss-link svg{
+  transition:transform .18s ease;
+}
+
+.swiss-link:hover{
+  color:var(--accent);
+  border-color:var(--accent);
+}
+
+.swiss-link:hover svg{
+  transform:translateX(5px);
+}
+
+button,
+input,
+a{
+  transition:var(--transition);
+}
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible{
+  outline:3px solid var(--accent);
+  outline-offset:4px;
+}
+
+::selection{
+  background:var(--accent);
+  color:#fff;
+}
+
+@media (max-width:960px){
+
+  .swiss-button{
+    height:68px;
+    font-size:1rem;
+    box-shadow:8px 8px 0 #111;
+  }
+
+  .swiss-button:hover{
+    transform:none;
+    box-shadow:8px 8px 0 #111;
+  }
+
+  .swiss-footer{
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .swiss-divider{
+    margin:40px 0;
+  }
+}/* ==========================================================================
+   PREMIUM SWISS + NEO BRUTALISM LOGIN
+   Part 4 of 4
+   Final polish, utilities, decorative effects
+   ========================================================================== */
+
+/* Decorative accents */
+.swiss-main::before{
+  content:"";
+  position:absolute;
+  top:0;
+  right:0;
+  width:240px;
+  height:240px;
+  background:
+    linear-gradient(135deg, rgba(218,41,28,.08), rgba(218,41,28,0));
+  pointer-events:none;
+}
+
+.swiss-main::after{
+  content:"";
+  position:absolute;
+  left:64px;
+  bottom:64px;
+  width:120px;
+  height:120px;
+  border:2px solid rgba(0,0,0,.08);
+  pointer-events:none;
+}
+
+/* Utility helpers */
+.text-muted{color:var(--muted)!important;}
+.text-accent{color:var(--accent)!important;}
+.text-center{text-align:center!important;}
+
+.mt-1{margin-top:var(--space-1)!important;}
+.mt-2{margin-top:var(--space-2)!important;}
+.mt-3{margin-top:var(--space-3)!important;}
+.mt-4{margin-top:var(--space-4)!important;}
+
+.mb-1{margin-bottom:var(--space-1)!important;}
+.mb-2{margin-bottom:var(--space-2)!important;}
+.mb-3{margin-bottom:var(--space-3)!important;}
+.mb-4{margin-bottom:var(--space-4)!important;}
+
+.hidden{
+  display:none!important;
+}
+
+/* Smooth SVG rendering */
+svg{
+  shape-rendering:geometricPrecision;
+  flex-shrink:0;
+}
+
+/* Scrollbar */
+*{
+  scrollbar-width:thin;
+  scrollbar-color:#111 #ececec;
+}
+
+*::-webkit-scrollbar{
+  width:10px;
+  height:10px;
+}
+
+*::-webkit-scrollbar-track{
+  background:#ececec;
+}
+
+*::-webkit-scrollbar-thumb{
+  background:#111;
+  border:2px solid #ececec;
+}
+
+/* Motion preferences */
+@media (prefers-reduced-motion:reduce){
+  *,
+  *::before,
+  *::after{
+    animation:none!important;
+    transition:none!important;
+    scroll-behavior:auto!important;
+  }
+}
+
+/* Large desktop refinement */
+@media (min-width:1600px){
+
+  .swiss-content{
+    width:min(820px,100%);
+  }
+
+  .swiss-title{
+    font-size:108px;
+  }
+
+  .swiss-sidebar{
+    min-width:500px;
+  }
+}
+
+/* Tablet */
+@media (max-width:768px){
+
+  .swiss-content{
+    padding:40px 24px;
+  }
+
+  .swiss-title{
+    font-size:52px;
+    letter-spacing:-.05em;
+  }
+
+  .swiss-subtitle{
+    font-size:1rem;
+  }
+
+  .lang-selector{
+    padding:8px 12px;
+  }
+}
+
+/* Mobile */
+@media (max-width:480px){
+
+  .swiss-content{
+    padding:32px 18px;
+  }
+
+  .swiss-title{
+    font-size:42px;
+  }
+
+  .swiss-input-wrapper input{
+    height:60px;
+    padding:0 52px;
+    font-size:.95rem;
+  }
+
+  .swiss-button{
+    height:60px;
+    font-size:.95rem;
+  }
+
+  .button-arrow{
+    right:18px;
+  }
+}

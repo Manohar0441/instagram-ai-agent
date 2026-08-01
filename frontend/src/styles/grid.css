@@ -1,3 +1,21 @@
+/* ==========================================================================
+   LAYOUT VARIABLES: STRICT GEOMETRY
+   ========================================================================== */
+:root {
+  --grid-columns: 12;
+  --grid-gutter: 2rem; /* Generous gutters for aggressive negative space */
+  
+  --space-2: 0.5rem;
+  --space-4: 2rem;     /* Standard rhythm */
+  --space-8: 4rem;     /* Macro rhythm */
+  
+  --rule-width: 2px;   /* Thick standard rules */
+  --rule-width-lg: 4px; /* Heavy structural rules */
+}
+
+/* ==========================================================================
+   THE 12-COLUMN GRID
+   ========================================================================== */
 /* The 12-column grid and the layout primitives built on it. The gutter is
  * constant at every breakpoint; only the number of columns a block spans
  * changes. */
@@ -30,6 +48,9 @@
   }
 }
 
+/* ==========================================================================
+   VERTICAL & HORIZONTAL RHYTHM
+   ========================================================================== */
 /* Vertical rhythm helper: consistent spacing between stacked children
    without margin collapsing surprises. */
 .stack {
@@ -60,11 +81,15 @@
   flex-wrap: wrap;
 }
 
-/* A hairline rule — the system's only separator. */
+/* ==========================================================================
+   RULES & SEPARATORS
+   ========================================================================== */
+/* A hairline rule — no longer a faint line, but a stark structural element. */
 .rule {
-  border-top: var(--rule-width) solid var(--color-rule);
+  border-top: var(--rule-width) solid var(--swiss-black);
 }
 
+/* The strong rule acts as a severe break in content, using Swiss Red. */
 .rule-strong {
-  border-top: var(--rule-width) solid var(--color-rule-strong);
+  border-top: var(--rule-width-lg) solid var(--swiss-red);
 }
