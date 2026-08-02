@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import "./layout.css";
 
 export function PageHeader({
   eyebrow,

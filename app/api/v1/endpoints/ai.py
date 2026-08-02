@@ -19,7 +19,12 @@ from app.services.ai_credential_service import (
     AIKeyRejectedError,
     AIUserNotFoundError,
 )
-from app.services.ai_service import AINotConfiguredError, AIProviderError, AIService
+from app.services.ai_service import (
+    AINotConfiguredError,
+    AIProviderError,
+    AIRateLimitedError,
+    AIService,
+)
 
 router = APIRouter(prefix="/ai", tags=["AI Agent"])
 
@@ -39,6 +44,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
     operation_id="chatWithAgent",
     responses={
         status.HTTP_200_OK: {"description": "Agent response returned successfully."},
+        status.HTTP_429_TOO_MANY_REQUESTS: {"description": "The AI provider's rate limit was reached."},
         status.HTTP_502_BAD_GATEWAY: {"description": "The AI provider request failed."},
         status.HTTP_503_SERVICE_UNAVAILABLE: {"description": "The AI service is not configured."},
     },
@@ -55,6 +61,10 @@ def chat(
         return ai_service.chat(current_user.id, payload.message)
     except AINotConfiguredError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    # AIRateLimitedError is a subclass of AIProviderError - it must be
+    # caught first, or its except clause is unreachable.
+    except AIRateLimitedError as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
     except AIProviderError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 

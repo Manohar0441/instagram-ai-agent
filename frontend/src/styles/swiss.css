@@ -56,7 +56,12 @@ body::before{
 .swiss-layout{
   display:grid;
   grid-template-columns:minmax(420px,28%) 1fr;
-  min-height:100vh;
+  /* Fixed, not min: the sidebar's quote block should never scroll out of
+     view. When the form column is taller than the viewport (a validation
+     error added on top of a full form, or a short window), only that
+     column scrolls internally - see .swiss-main - rather than the whole
+     page growing past 100vh. */
+  height:100vh;
   background:var(--bg);
 }
 
@@ -140,6 +145,8 @@ body::before{
 
 .swiss-main{
   position:relative;
+  height:100vh;
+  overflow-y:auto;
   background:
     linear-gradient(rgba(0,0,0,.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0,0,0,.025) 1px, transparent 1px),
@@ -553,6 +560,73 @@ svg{
   }
 }
 
+/* Short viewports (a wide browser window that just isn't very tall - the
+   width-based breakpoints above don't fire here since the sidebar still
+   fits fine at this width; only the vertical rhythm needs compacting so
+   the form fits without the .swiss-main panel needing to scroll). Guarded
+   to widths where the sidebar is still showing so this never overlaps
+   with the tablet/mobile width breakpoints, which already compact things
+   their own way. */
+@media (max-height:820px) and (min-width:961px){
+
+  .swiss-content{
+    padding:40px 80px;
+  }
+
+  .swiss-title{
+    font-size:60px;
+  }
+
+  .swiss-header-block{
+    margin-bottom:32px;
+  }
+
+  .swiss-subtitle{
+    margin-top:10px;
+  }
+
+  .swiss-form{
+    gap:20px;
+  }
+
+  .swiss-field-group label{
+    margin-bottom:6px;
+  }
+
+  .swiss-input-wrapper input{
+    height:60px;
+  }
+
+  .swiss-button{
+    height:64px;
+    margin-top:8px;
+  }
+
+  .swiss-divider{
+    margin:24px 0;
+  }
+}
+
+/* Very short viewports - one step further than the tier above. */
+@media (max-height:650px) and (min-width:961px){
+
+  .swiss-content{
+    padding:24px 80px;
+  }
+
+  .swiss-title{
+    font-size:48px;
+  }
+
+  .swiss-header-block{
+    margin-bottom:20px;
+  }
+
+  .swiss-divider{
+    margin:16px 0;
+  }
+}
+
 /* Large desktop refinement */
 @media (min-width:1600px){
 
@@ -614,5 +688,660 @@ svg{
 
   .button-arrow{
     right:18px;
+  }
+}
+
+/* ==========================================================================
+   PART 5 — APP COMPONENT LIBRARY
+   Extends the login system above to the rest of the product. Nothing here
+   redefines a variable or class from Parts 1–4; it only adds what those
+   parts didn't need (a reusable type scale, generic weights/tracking, and
+   every component the dashboard/chat/settings screens require) using
+   exclusively the tokens already declared above: --bg --surface --text
+   --muted --line --accent --shadow --radius --transition --space-1..8.
+   ========================================================================== */
+
+:root{
+  --font-sans:Inter,"Neue Haas Grotesk Text","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --font-mono:"IBM Plex Mono","Courier New",Courier,monospace;
+
+  /* A formal scale built from the sizes Part 1–4 already use in practice
+     (92px title, .85rem label, 1.05rem input, 1.2rem subtitle), extended
+     just enough to cover dashboard headings and stat numerals. */
+  --text-xs:.75rem;
+  --text-sm:.85rem;
+  --text-base:1rem;
+  --text-md:1.05rem;
+  --text-lg:1.2rem;
+  --text-xl:1.75rem;
+  --text-2xl:2.5rem;
+  --text-3xl:5.75rem; /* matches --swiss-title exactly, hero/auth only */
+
+  --weight-regular:400;
+  --weight-medium:500;
+  --weight-bold:700;
+  --weight-black:800; /* matches --swiss-title's own weight */
+
+  --leading-tight:1;
+  --leading-snug:1.2;
+  --leading-normal:1.5;
+
+  --tracking-tight:-.03em;
+  --tracking-normal:0;
+  --tracking-wide:.08em;
+
+  --content-max:90rem;
+  --grid-columns:12;
+}
+
+/* -------------------------------------------------------------- reset -- */
+
+ul,ol{list-style-position:outside;padding-left:var(--space-3);}
+table{border-collapse:collapse;width:100%;}
+p{max-width:66ch;}
+
+h1,h2,h3,h4{font-weight:var(--weight-black);line-height:var(--leading-tight);letter-spacing:var(--tracking-tight);}
+h1{font-size:var(--text-xl);}
+h2{font-size:var(--text-lg);}
+h3{font-size:var(--text-md);}
+
+.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+
+/* ---------------------------------------------------------- type utils -- */
+
+.eyebrow{font-size:var(--text-sm);font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);}
+.muted{color:var(--muted);}
+.mono{font-family:var(--font-mono);}
+.text-sm{font-size:var(--text-sm);}
+.text-xs{font-size:var(--text-xs);}
+.stat,.tabular{font-variant-numeric:tabular-nums;}
+
+/* -------------------------------------------------------------- grid --- */
+
+.grid{display:grid;grid-template-columns:repeat(var(--grid-columns),1fr);gap:var(--space-4);}
+/* A 1fr grid track defaults to min-width:auto - it won't shrink below the
+   min-content size of what's inside it, so a card with a long unwrapped
+   label can force its whole track (and everything after it) wider than
+   the grid's own container, overflowing past the page's right padding.
+   min-width:0 is the standard fix: it lets the track (and the flex
+   column inside it - see .stat-card/.chart-panel below) shrink to fit. */
+.col-1,.col-2,.col-3,.col-4,.col-5,.col-6,.col-7,.col-8,.col-9,.col-10,.col-11,.col-12{min-width:0;}
+.col-1{grid-column:span 1;} .col-2{grid-column:span 2;} .col-3{grid-column:span 3;}
+.col-4{grid-column:span 4;} .col-5{grid-column:span 5;} .col-6{grid-column:span 6;}
+.col-7{grid-column:span 7;} .col-8{grid-column:span 8;} .col-9{grid-column:span 9;}
+.col-10{grid-column:span 10;} .col-11{grid-column:span 11;} .col-12{grid-column:span 12;}
+
+@media (max-width:900px){
+  /* A single item spanning all 12 tracks of a repeat(12,1fr) grid still
+     pays for the 11 internal column gaps between them (11 x 32px = 352px)
+     as real rendered width, on top of whatever the (possibly-collapsed-
+     to-0) tracks themselves take up - on a narrow screen that gap
+     overhead alone can exceed the container, overflowing it regardless
+     of content. A true single-column template has no internal gaps to
+     pay for, so it's used here instead of just re-spanning the 12-track
+     one. (The 375-768px stat-card override below replaces this with a
+     genuine 2-column template for the same reason.) */
+  .grid{grid-template-columns:1fr;}
+  .col-1,.col-2,.col-3,.col-4,.col-5,.col-6,.col-7,.col-8,.col-9,.col-10,.col-11,.col-12{grid-column:span 1;}
+}
+
+/* Each is self-sufficient (not a modifier requiring .stack alongside it) -
+   every call site in this app uses stack-lg/stack-sm on their own, so
+   gap-only rules that depend on a base display:flex from .stack were a
+   silent no-op: gap has no effect without a flex/grid container. */
+.stack{display:flex;flex-direction:column;gap:var(--space-3);}
+.stack-lg{display:flex;flex-direction:column;gap:var(--space-5);}
+.stack-sm{display:flex;flex-direction:column;gap:var(--space-2);}
+.row{display:flex;align-items:center;gap:var(--space-3);}
+.row-between{justify-content:space-between;}
+.row-wrap{flex-wrap:wrap;}
+
+.rule{border-top:2px solid var(--line);}
+.rule-strong{border-top:2px solid var(--text);}
+
+/* -------------------------------------------------------------- shell -- */
+
+/* An "auto" track sizes to the nav's own width, so animating that width
+   (a plain, reliably-interpolated CSS property) resizes the column with it -
+   no custom-property/grid-track interpolation trickery required. */
+.shell{display:grid;grid-template-columns:auto 1fr;min-height:100vh;background:var(--bg);}
+.shell__main{padding:var(--space-4) var(--space-4) var(--space-6);max-width:var(--content-max);width:100%;min-width:0;}
+
+.nav{position:sticky;top:0;width:17rem;flex-shrink:0;height:100vh;padding:var(--space-3) var(--space-2);border-right:2px solid var(--text);display:flex;flex-direction:column;gap:var(--space-4);overflow-x:hidden;overflow-y:auto;background:var(--bg);transition:width .22s cubic-bezier(.22,1,.36,1);}
+.nav--collapsed{width:4.75rem;}
+
+.nav__head{display:flex;align-items:center;gap:var(--space-1);}
+.nav__brand{display:flex;align-items:center;gap:var(--space-2);min-width:0;flex:1;padding:0 var(--space-2);font-size:1.05rem;font-weight:var(--weight-black);letter-spacing:var(--tracking-tight);color:var(--text);text-decoration:none;border-bottom:0;}
+.nav__brand:hover{color:var(--text);border-bottom:0;}
+.nav__brand-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nav__mark{display:grid;place-items:center;width:1.75rem;height:1.75rem;background:var(--accent);color:#fff;font-size:.85rem;font-weight:var(--weight-black);flex-shrink:0;}
+
+.nav__collapse-toggle{display:grid;place-items:center;width:1.75rem;height:1.75rem;flex-shrink:0;border:2px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;transition:var(--transition);}
+.nav__collapse-toggle:hover{border-color:var(--text);color:var(--text);transform:translate(-1px,-1px);box-shadow:2px 2px 0 var(--shadow);}
+
+.nav__group{display:flex;flex-direction:column;gap:1px;}
+.nav__group-label{font-size:.7rem;font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);padding:0 var(--space-2);margin-bottom:var(--space-1);white-space:nowrap;}
+.nav__link{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-2);font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--muted);text-decoration:none;border-bottom:0;border-left:3px solid transparent;transition:var(--transition);}
+.nav__link:hover{color:var(--text);background:var(--surface);border-bottom:0;}
+.nav__link--active{color:var(--text);font-weight:var(--weight-black);border-left-color:var(--accent);background:var(--surface);}
+.nav__link-badge{display:grid;place-items:center;width:1.5rem;height:1.5rem;flex-shrink:0;font-size:.6rem;font-weight:var(--weight-black);letter-spacing:0;border:2px solid currentColor;color:inherit;}
+.nav__link--active .nav__link-badge{background:var(--accent);border-color:var(--accent);color:#fff;}
+.nav__link-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.nav__footer{margin-top:auto;padding-top:var(--space-2);border-top:2px solid var(--line);display:flex;flex-direction:column;gap:var(--space-2);}
+.nav__utility{display:flex;align-items:center;gap:var(--space-1);}
+.nav__utility .button{flex:1;}
+
+/* -------------------------------------------------------- collapsed nav -- */
+
+.nav--collapsed .nav__head{flex-direction:column;gap:var(--space-2);}
+.nav--collapsed .nav__brand{flex:none;justify-content:center;padding:0;}
+.nav--collapsed .nav__brand-label,
+.nav--collapsed .nav__group-label,
+.nav--collapsed .nav__link-label{display:none;}
+.nav--collapsed .nav__link{justify-content:center;border-left:0;}
+.nav--collapsed .nav__link--active{border-left:0;}
+.nav--collapsed .nav__utility{flex-direction:column;}
+
+/* ------------------------------------------------------- mobile drawer -- */
+
+/* Hidden above the drawer breakpoint - see the media query below. */
+.nav__mobile-topbar{display:none;}
+.nav__hamburger{display:none;}
+.nav__drawer-close{display:none;}
+.nav__backdrop{display:none;}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;}
+
+  .nav__mobile-topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:var(--space-2);
+    position:sticky;
+    top:0;
+    z-index:30;
+    background:var(--bg);
+    border-bottom:2px solid var(--text);
+    padding:var(--space-2) var(--space-3);
+    padding-top:calc(var(--space-2) + env(safe-area-inset-top));
+    padding-left:calc(var(--space-3) + env(safe-area-inset-left));
+    padding-right:calc(var(--space-3) + env(safe-area-inset-right));
+  }
+
+  /* A 44px square meets the minimum touch-target size on both iOS and
+     Android guidance - the button box is padded out to that even though
+     the icon itself is smaller. */
+  .nav__hamburger{
+    display:grid;
+    place-items:center;
+    width:44px;
+    height:44px;
+    flex-shrink:0;
+    border:2px solid var(--text);
+    background:var(--surface);
+    color:var(--text);
+    cursor:pointer;
+    transition:var(--transition);
+  }
+  .nav__hamburger:active{transform:translate(2px,2px);box-shadow:none;}
+
+  .nav__backdrop{
+    display:block;
+    position:fixed;
+    inset:0;
+    z-index:35;
+    background:rgba(16,16,16,.45);
+    animation:backdrop-in .18s ease both;
+  }
+  @keyframes backdrop-in{from{opacity:0;}to{opacity:1;}}
+
+  .nav,.nav--collapsed{
+    position:fixed;
+    top:0;
+    left:0;
+    bottom:0;
+    z-index:40;
+    width:85%;
+    max-width:22rem;
+    height:100%;
+    flex-direction:column;
+    flex-wrap:nowrap;
+    align-items:stretch;
+    gap:var(--space-4);
+    border-right:2px solid var(--text);
+    border-bottom:0;
+    box-shadow:12px 0 32px rgba(0,0,0,.22);
+    transform:translateX(-105%);
+    transition:transform .25s cubic-bezier(.22,1,.36,1);
+    padding:var(--space-3) var(--space-2);
+    padding-top:calc(var(--space-3) + env(safe-area-inset-top));
+    padding-bottom:calc(var(--space-3) + env(safe-area-inset-bottom));
+    padding-left:calc(var(--space-2) + env(safe-area-inset-left));
+  }
+  .nav--drawer-open{transform:translateX(0);}
+
+  .nav__head{flex-direction:row;}
+  .nav__collapse-toggle{display:none;}
+  .nav__drawer-close{
+    display:grid;
+    place-items:center;
+    width:44px;
+    height:44px;
+    flex-shrink:0;
+    border:2px solid var(--line);
+    background:var(--surface);
+    color:var(--muted);
+    cursor:pointer;
+    transition:var(--transition);
+  }
+  .nav__drawer-close:hover{border-color:var(--text);color:var(--text);}
+
+  .nav--collapsed .nav__head{flex-direction:row;}
+  .nav--collapsed .nav__brand{justify-content:flex-start;padding:0 var(--space-2);}
+  .nav--collapsed .nav__brand-label,
+  .nav--collapsed .nav__group-label,
+  .nav--collapsed .nav__link-label{display:block;}
+  .nav--collapsed .nav__link{justify-content:flex-start;}
+
+  .nav__group{flex-direction:column;gap:1px;}
+  .nav__group-label{display:block;}
+  .nav__link{padding:var(--space-2);min-height:44px;}
+  .nav__link-label{display:inline;}
+  .nav__footer{margin-top:auto;border-top:2px solid var(--line);flex-direction:column;align-items:stretch;}
+  .nav__utility .button{min-height:44px;}
+}
+
+/* --------------------------------------------------------- page header -- */
+
+.page-header{margin-bottom:var(--space-5);}
+.page-header__eyebrow{display:block;font-size:var(--text-sm);font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);margin-bottom:var(--space-1);}
+.page-header__title{font-size:var(--text-xl);font-weight:var(--weight-black);letter-spacing:var(--tracking-tight);padding-bottom:var(--space-2);border-bottom:2px solid var(--text);}
+.page-header__description{margin-top:var(--space-2);color:var(--muted);font-size:var(--text-sm);max-width:66ch;}
+.page-header__actions{margin-top:var(--space-3);display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;}
+
+.step-marker{font-size:var(--text-xs);font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);margin-bottom:var(--space-1);}
+
+/* -------------------------------------------------------------- panel -- */
+
+/* The single card/surface primitive (rendered by <Panel>). Solid surface,
+   a firm border, and a hard offset shadow — the same idiom as
+   .swiss-input-wrapper, just generalised to any block of content. */
+.swiss-panel{background:var(--surface);border:2px solid var(--text);box-shadow:6px 6px 0 var(--shadow);}
+.swiss-panel--interactive{transition:var(--transition);}
+.swiss-panel--interactive:hover{transform:translate(-3px,-3px);box-shadow:9px 9px 0 var(--shadow);}
+
+/* ------------------------------------------------------------- button -- */
+
+.button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-1);height:48px;padding:0 var(--space-3);border:2px solid var(--text);background:var(--surface);color:var(--text);font-size:var(--text-sm);font-weight:var(--weight-black);cursor:pointer;white-space:nowrap;box-shadow:4px 4px 0 var(--shadow);transition:var(--transition);}
+.button:hover:not(:disabled){transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--shadow);}
+.button:active:not(:disabled){transform:translate(0,0);box-shadow:2px 2px 0 var(--shadow);}
+.button--primary{background:var(--accent);border-color:var(--text);color:#fff;box-shadow:4px 4px 0 var(--text);}
+.button--primary:hover:not(:disabled){box-shadow:6px 6px 0 var(--text);}
+.button--primary:active:not(:disabled){box-shadow:2px 2px 0 var(--text);}
+.button--quiet{border-color:transparent;background:transparent;color:var(--muted);box-shadow:none;}
+.button--quiet:hover:not(:disabled){transform:none;box-shadow:none;color:var(--text);border-color:var(--text);background:var(--surface);}
+.button--danger{border-color:var(--accent);color:var(--accent);}
+.button--danger:hover:not(:disabled){background:var(--accent);color:#fff;}
+.button--small{height:36px;padding:0 var(--space-2);font-size:var(--text-xs);box-shadow:3px 3px 0 var(--shadow);}
+.button--small:hover:not(:disabled){box-shadow:5px 5px 0 var(--shadow);}
+.button--icon{width:36px;padding:0;}
+.button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none!important;transform:none!important;}
+
+.spinner{display:inline-block;width:.8rem;height:.8rem;background:currentColor;flex-shrink:0;animation:spinner-pulse .8s steps(4) infinite;}
+.spinner--page{width:1.2rem;height:1.2rem;}
+@keyframes spinner-pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.3;transform:scale(.55);}}
+
+/* -------------------------------------------------------------- field -- */
+
+.field{display:flex;flex-direction:column;gap:var(--space-1);}
+.field__label{font-size:.8rem;font-weight:var(--weight-black);text-transform:uppercase;letter-spacing:var(--tracking-wide);}
+.field__hint{font-size:var(--text-xs);color:var(--muted);max-width:60ch;}
+.field__input{width:100%;height:48px;padding:0 var(--space-2);border:2px solid var(--text);background:var(--surface);transition:var(--transition);}
+.field__input::placeholder{color:#9a9a9a;}
+.field__input:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--shadow);}
+.field__input:focus{outline:none;transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--accent);}
+.field__input[aria-invalid="true"]{border-color:var(--accent);}
+.field__error{font-size:var(--text-xs);color:var(--accent);font-weight:var(--weight-bold);}
+
+/* ------------------------------------------------------------ callout -- */
+
+.callout{display:flex;gap:var(--space-2);padding:var(--space-2) var(--space-3);border:2px solid var(--text);background:var(--text);color:#fff;box-shadow:6px 6px 0 var(--accent);font-size:var(--text-sm);}
+.callout--error{background:var(--accent);box-shadow:6px 6px 0 var(--text);}
+.callout__title{font-weight:var(--weight-black);margin-bottom:2px;}
+
+/* -------------------------------------------------------------- badge -- */
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px var(--space-1);border:2px solid var(--text);font-size:var(--text-xs);font-weight:var(--weight-black);text-transform:uppercase;letter-spacing:var(--tracking-wide);color:var(--text);background:var(--surface);white-space:nowrap;}
+.badge--accent{border-color:var(--accent);background:var(--accent);color:#fff;}
+.badge--solid{border-color:var(--text);background:var(--text);color:#fff;}
+
+/* ----------------------------------------------------------- tooltip -- */
+
+.has-tooltip{position:relative;cursor:help;}
+.has-tooltip__bubble{position:absolute;bottom:calc(100% + var(--space-1));left:0;z-index:20;width:max-content;max-width:18rem;padding:var(--space-1) var(--space-2);border:2px solid var(--text);background:var(--text);color:#fff;box-shadow:4px 4px 0 var(--accent);font-size:var(--text-xs);font-weight:var(--weight-regular);text-transform:none;letter-spacing:normal;opacity:0;transform:translateY(4px);pointer-events:none;transition:var(--transition);}
+.has-tooltip:hover .has-tooltip__bubble,.has-tooltip:focus-visible .has-tooltip__bubble{opacity:1;transform:none;}
+
+/* --------------------------------------------------------- stat card -- */
+
+.stat-card{display:flex;flex-direction:column;gap:var(--space-1);padding:var(--space-3);min-height:9.5rem;min-width:0;}
+.stat-card__head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-1);min-width:0;}
+/* A flex item's own min-width:auto floor (independent of min-width:0 set
+   on any ancestor) is normally the width of its longest unbreakable word -
+   for an all-caps label like "ENGAGEMENT RATE" on a ~140px 2-up mobile
+   card, that alone was enough to force the whole grid row wider than its
+   container. min-width:0 plus a word-break escape hatch lets it actually
+   use the space the grid gives it instead of demanding its own. */
+.stat-card__label{min-width:0;overflow-wrap:break-word;font-size:.7rem;font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);}
+.stat-card__icon{display:grid;place-items:center;width:1.75rem;height:1.75rem;border:2px solid var(--text);background:var(--bg);color:var(--text);font-size:var(--text-sm);flex-shrink:0;}
+.stat-card__value{font-size:var(--text-2xl);font-weight:var(--weight-black);line-height:var(--leading-tight);letter-spacing:var(--tracking-tight);font-variant-numeric:tabular-nums;}
+.stat-card__foot{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);margin-top:auto;}
+.stat-card__delta{display:inline-flex;align-items:center;gap:4px;font-size:var(--text-sm);font-variant-numeric:tabular-nums;font-weight:var(--weight-bold);}
+.stat-card__delta--up{color:var(--text);}
+.stat-card__delta--down{color:var(--accent);}
+.stat-card__delta--flat{color:var(--muted);}
+.stat-card__sparkline{width:5rem;height:1.75rem;flex-shrink:0;}
+.stat-card__note{font-size:var(--text-xs);color:var(--muted);}
+
+/* --------------------------------------------------------- empty state -- */
+
+.empty-state{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-3);padding:var(--space-6) var(--space-4);text-align:left;}
+.empty-state__art{display:grid;place-items:center;width:3.5rem;height:3.5rem;border:2px solid var(--text);background:var(--bg);color:var(--text);font-size:var(--text-lg);}
+.empty-state__title{font-size:var(--text-lg);font-weight:var(--weight-black);}
+.empty-state__body{color:var(--muted);font-size:var(--text-sm);max-width:52ch;}
+.empty-state__actions{display:flex;gap:var(--space-2);flex-wrap:wrap;}
+
+.loading-page{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-7) var(--space-4);color:var(--muted);font-size:var(--text-sm);}
+
+/* ------------------------------------------------------------ skeleton -- */
+
+.skeleton{background-color:var(--line);animation:pulse-stark 1.4s step-end infinite;}
+@keyframes pulse-stark{0%{background-color:var(--line);}50%{background-color:var(--muted);}100%{background-color:var(--line);}}
+.skeleton-card{padding:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);min-height:9.5rem;}
+.skeleton-line{height:.75rem;}
+.skeleton-line--sm{width:40%;}
+.skeleton-line--md{width:65%;}
+.skeleton-line--lg{width:85%;}
+.skeleton-line--xl{height:2rem;width:55%;}
+
+/* --------------------------------------------------------- segmented -- */
+
+.segmented{display:inline-flex;border:2px solid var(--text);background:var(--surface);}
+.segmented__option{padding:var(--space-1) var(--space-2);border:0;border-right:2px solid var(--text);background:transparent;color:var(--muted);font-size:var(--text-xs);font-weight:var(--weight-black);text-transform:uppercase;letter-spacing:var(--tracking-wide);cursor:pointer;white-space:nowrap;transition:var(--transition);}
+.segmented__option:last-child{border-right:0;}
+.segmented__option[aria-pressed="true"]{background:var(--text);color:#fff;}
+.segmented__option:hover:not([aria-pressed="true"]){background:var(--bg);color:var(--text);}
+
+/* ------------------------------------------------------------- table -- */
+
+.data-table{font-size:var(--text-sm);}
+.data-table th{position:sticky;top:0;text-align:left;font-size:var(--text-xs);font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);padding:var(--space-2);background:var(--surface);border-bottom:2px solid var(--text);white-space:nowrap;}
+.data-table td{padding:var(--space-2);border-bottom:2px solid var(--line);vertical-align:top;}
+.data-table td.numeric,.data-table th.numeric{text-align:right;}
+.data-table tbody tr{transition:var(--transition);}
+.data-table tbody tr:hover{background:var(--bg);}
+.table-scroll{overflow-x:auto;}
+
+/* -------------------------------------------------------------- chat -- */
+
+.chat{display:flex;flex-direction:column;gap:var(--space-3);max-width:56rem;min-height:calc(100vh - 18rem);}
+.chat__thread{display:flex;flex-direction:column;gap:var(--space-4);flex:1;}
+.chat__turn{display:flex;flex-direction:column;gap:var(--space-1);max-width:90%;}
+.chat__turn--user{align-self:flex-end;align-items:flex-end;}
+.chat__meta{display:flex;align-items:baseline;gap:var(--space-2);padding:0 2px;}
+.chat__role{font-size:var(--text-xs);font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);}
+.chat__time{font-size:var(--text-xs);color:var(--muted);font-variant-numeric:tabular-nums;}
+.chat__bubble{padding:var(--space-2) var(--space-3);border:2px solid var(--text);background:var(--surface);box-shadow:4px 4px 0 var(--shadow);}
+.chat__turn--user .chat__bubble{background:var(--text);color:#fff;}
+.chat__text{white-space:pre-wrap;max-width:68ch;margin:0;}
+.chat__actions{display:flex;align-items:center;gap:var(--space-2);padding:0 2px;flex-wrap:wrap;}
+.chat__actions-spacer{flex:1;}
+.chat__tools{font-size:var(--text-xs);color:var(--muted);}
+.chat__error{max-width:56rem;}
+.chat__composer{display:flex;gap:var(--space-1);align-items:center;padding:var(--space-1);border:2px solid var(--text);background:var(--surface);box-shadow:6px 6px 0 var(--shadow);position:sticky;bottom:var(--space-2);z-index:5;}
+.chat__input{flex:1;min-width:0;padding:var(--space-2);border:0;background:transparent;outline:none;font-size:var(--text-sm);}
+.chat__input::placeholder{color:#9a9a9a;}
+.chat__intro{display:flex;flex-direction:column;gap:var(--space-3);padding-top:var(--space-2);}
+.chat__suggestions{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:var(--space-2);}
+.chat__suggestion{padding:var(--space-2);border:2px solid var(--text);background:var(--surface);text-align:left;font-size:var(--text-sm);color:var(--text);cursor:pointer;box-shadow:3px 3px 0 var(--shadow);transition:var(--transition);}
+.chat__suggestion:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--shadow);}
+
+.typing{display:inline-flex;align-items:center;gap:5px;height:1.5rem;}
+.typing span{width:6px;height:6px;background:var(--muted);animation:typing-bounce 1.2s ease infinite;}
+.typing span:nth-child(2){animation-delay:.15s;}
+.typing span:nth-child(3){animation-delay:.3s;}
+@keyframes typing-bounce{0%,60%,100%{opacity:.4;}30%{opacity:1;}}
+
+/* ------------------------------------------------------------- chart -- */
+
+.chart-panel{padding:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);min-width:0;}
+.chart-panel__title{min-width:0;overflow-wrap:break-word;font-size:var(--text-xs);font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);}
+.chart-panel__caption{font-size:var(--text-xs);color:var(--muted);padding-top:var(--space-2);border-top:2px solid var(--line);}
+.chart-panel__empty{padding:var(--space-6) 0;font-size:var(--text-sm);color:var(--muted);}
+
+/* Recharts renders its own focus outline on the SVG wrapper; ours is
+   already handled by the interactive elements inside it. */
+.recharts-wrapper:focus,.recharts-surface:focus{outline:none;}
+.recharts-cartesian-axis-tick text{font-variant-numeric:tabular-nums;}
+
+/* ------------------------------------------------------------ markdown -- */
+
+/* Model output rendered inside a chat bubble — tighter rhythm than page
+   prose, no rounded corners or soft surfaces to stay on-brand. */
+.markdown{display:flex;flex-direction:column;gap:var(--space-2);font-size:var(--text-base);}
+.markdown>:first-child{margin-top:0;}
+.markdown>:last-child{margin-bottom:0;}
+.markdown p{max-width:68ch;margin:0;}
+.markdown h1,.markdown h2,.markdown h3{font-size:var(--text-base);font-weight:var(--weight-bold);letter-spacing:normal;margin-top:var(--space-1);}
+.markdown ul,.markdown ol{display:flex;flex-direction:column;gap:var(--space-1);margin:0;padding-left:var(--space-3);max-width:68ch;}
+.markdown li::marker{color:var(--muted);}
+.markdown strong{font-weight:var(--weight-bold);}
+.markdown code{padding:.1em .35em;background:var(--bg);border:1px solid var(--line);font-family:var(--font-mono);font-size:.9em;}
+.markdown pre{overflow-x:auto;padding:var(--space-2);border:2px solid var(--text);background:var(--bg);}
+.markdown pre code{padding:0;border:0;background:none;font-size:var(--text-xs);line-height:var(--leading-snug);}
+.markdown blockquote{padding-left:var(--space-2);border-left:2px solid var(--text);color:var(--muted);}
+.markdown__table-scroll{overflow-x:auto;}
+.markdown hr{border:0;border-top:2px solid var(--line);}
+
+/* ----------------------------------------------------------- insight -- */
+
+.insight{padding:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);}
+.insight__title{font-size:var(--text-xs);font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);}
+.insight__summary{font-size:var(--text-base);max-width:66ch;}
+.insight__disclosure{font-size:var(--text-xs);margin-top:2px;}
+.insight__disclosure summary{cursor:pointer;color:var(--muted);font-weight:var(--weight-bold);padding:2px 0;}
+.insight__disclosure summary:hover{color:var(--text);}
+.insight__data{margin-top:var(--space-2);padding:var(--space-2);background:var(--bg);font-family:var(--font-mono);font-size:var(--text-xs);overflow-x:auto;white-space:pre;}
+.generated-at{font-size:var(--text-xs);color:var(--muted);}
+
+.list-block{padding:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);}
+.list-block__label{font-size:var(--text-xs);font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);}
+.list-block ul{display:flex;flex-direction:column;gap:var(--space-1);max-width:66ch;}
+
+/* --------------------------------------------------------- detail row -- */
+
+/* A label/value pair (Settings' Instagram account facts). Side-by-side on
+   desktop, stacked on mobile - see the media query below - so a long value
+   (a date, an @handle) never has to fight a fixed-width label column for
+   space on a narrow screen. */
+.detail-list{padding:var(--space-4);}
+.detail-list dl{font-size:var(--text-sm);}
+
+.detail-row{display:flex;align-items:baseline;gap:var(--space-3);padding-bottom:var(--space-2);border-bottom:1px solid var(--line);}
+.detail-row:last-child{padding-bottom:0;border-bottom:0;}
+.detail-row dt{min-width:10rem;flex-shrink:0;font-size:.7rem;font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);}
+.detail-row dd{margin:0;font-weight:var(--weight-medium);}
+
+/* ==========================================================================
+   PART 6 — MOBILE REFINEMENTS
+   Desktop (>=961px, matching the shell/nav drawer breakpoint used
+   throughout this file) is untouched by anything below - every rule here
+   is scoped inside a max-width media query. This section makes the
+   already-responsive component library in Part 5 feel deliberately
+   designed for a phone rather than just shrunk: touch targets grow to the
+   44px minimum, dense multi-option controls get room to breathe or scroll
+   instead of overflowing, and stat cards pair up two-to-a-row instead of
+   stacking eight deep.
+   ========================================================================== */
+
+/* A last-resort safety net. Every overflow source found in the audit was
+   fixed at its cause below, but this catches anything future content adds
+   without ever clipping a sticky/fixed element that intentionally extends
+   past the inline box (there are none in this app, but if one appears,
+   overflow-x on the axis a fixed element ignores is still safe).
+
+   Scoped to html only, not body: setting overflow-x without overflow-y
+   makes the browser compute overflow-y as auto (CSS spec), so putting this
+   on both html and body turns each into its own independent scroll
+   container - and .nav's position:sticky, which expects exactly one
+   scrolling ancestor between it and the viewport, silently stops sticking
+   as a result. html alone is enough to clip horizontal overflow. */
+html{overflow-x:hidden;}
+
+/* Tooltips: a fluid cap that shrinks the bubble on any viewport narrower
+   than 18rem+margins, not just below a breakpoint - min() means this is
+   a strict improvement on desktop too (it only ever makes the same or a
+   smaller box), so it lives outside the media query. */
+.has-tooltip__bubble{max-width:min(18rem, calc(100vw - 2rem));}
+
+@media (max-width:768px){
+
+  /* ---------------------------------------------------------- buttons -- */
+
+  /* 36px (.button--small) and the 40px icon buttons both sit under the
+     44px minimum touch target iOS/Android guidance calls for. Desktop's
+     tighter sizing is left alone - a mouse doesn't need the margin. */
+  .button--small{min-height:44px;}
+  .icon-right{width:44px;height:44px;}
+
+  /* Buttons keep their compact nowrap label on desktop, where the layout
+     is built around it fitting; on a narrow screen a long label (e.g. a
+     future longer button copy) should wrap rather than push the button
+     wider than its container. */
+  .button{white-space:normal;text-align:center;}
+
+  /* ------------------------------------------------------ page header -- */
+
+  /* Two segmented controls side by side (Trends' Granularity + Period,
+     Rankings' Metric + Order) fit on a tablet but not a phone - stack them
+     full-width instead of leaving them to wrap mid-control. */
+  .page-header__actions{flex-direction:column;align-items:stretch;}
+
+  /* A control with many options (Rankings' 5-metric Metric selector) can
+     still be wider than the screen even full-width. Rather than wrap the
+     pill in half, let it scroll horizontally like the data tables do -
+     min-width:0 is required for a flex child to shrink below its content
+     size at all. */
+  .segmented{max-width:100%;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+
+  /* ------------------------------------------------------- stat cards -- */
+
+  /* Two-up instead of Part 5's full single-column collapse (from the
+     .col-* >=901px rule) - eight stacked cards is a lot of scrolling for
+     what a phone can comfortably show two-to-a-row. Held back to >=375px
+     so the narrowest phones (320px) get the safer single column instead.
+
+     This redefines .grid itself to a real 2-column template rather than
+     giving col-3 a span:6 of the normal 12-column one: a 12-column grid
+     with a 32px gap reserves 11 x 32px = 352px for gutters alone, which
+     is already wider than most phone screens before any card content is
+     considered - every 1fr track collapses to 0 and a spanning item's
+     width becomes nothing but its internal gutters (6 zero-width tracks
+     + 5 internal 32px gaps = 160px), overflowing the container no matter
+     how narrow its actual content is. A genuine 2-column grid has one
+     gutter to reserve, not eleven, so the math works at any phone width.
+     Scoped to col-3 (stat cards only, see StatCard and its skeleton
+     placeholder); every other .col-* used inside a .grid on this
+     breakpoint (chart/table panels) is forced to the full 2 columns so
+     it still reads as one full-width row rather than being clipped to a
+     single narrow column of this template. */
+  @media (min-width:375px){
+    .grid{grid-template-columns:repeat(2,1fr);}
+    .col-3{grid-column:span 1;}
+    .col-1,.col-2,.col-4,.col-5,.col-6,.col-7,.col-8,.col-9,.col-10,.col-11,.col-12{
+      grid-column:span 2;
+    }
+  }
+
+  /* The 40px numeral can outgrow a ~150px 2-up card at the top of that
+     range; clamp() keeps it legible without a numeric breakpoint ladder. */
+  .stat-card__value{font-size:clamp(1.5rem,7vw,2.5rem);}
+
+  /* -------------------------------------------------------- detail row -- */
+
+  .detail-row{flex-direction:column;align-items:flex-start;gap:2px;}
+  .detail-row dt{min-width:0;}
+
+  /* --------------------------------------------------------------- nav -- */
+
+  .nav__utility .button{white-space:nowrap;}
+}
+
+@media (max-width:900px){
+  /* Chat's composer already sticks to the bottom of the thread; on a
+     phone with a home-indicator gesture bar it also needs to clear that
+     bar rather than sit flush against (or under) it. */
+  .chat__composer{
+    bottom:calc(var(--space-2) + env(safe-area-inset-bottom));
+  }
+}
+
+/* ==========================================================================
+   PRINT — full report export
+   Scoped entirely inside @media print; screen rendering of every other
+   page is untouched.
+   ========================================================================== */
+@media print{
+  /* Chrome/Safari strip background fills and box-shadows by default, which
+     would print the whole Swiss design (including the accent color) as
+     bare outlines. This is what actually keeps it. */
+  *{
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  .nav,
+  .nav__mobile-topbar,
+  .page-header__actions,
+  .button{
+    display:none !important;
+  }
+
+  .shell{
+    display:block;
+    min-height:0;
+    background:#fff;
+  }
+
+  .shell__main{
+    padding:0;
+  }
+
+  .swiss-panel,
+  .stat-card,
+  .insight,
+  .list-block,
+  .export-section,
+  .data-table tr{
+    break-inside:avoid;
+  }
+
+  .export-section{
+    break-before:page;
+  }
+  /* The first section directly after the cover detail card shouldn't
+     force a blank leading page. */
+  .export-report > .detail-list + .export-section{
+    break-before:auto;
+  }
+
+  .swiss-panel--interactive:hover{
+    transform:none;
+    box-shadow:6px 6px 0 var(--shadow);
+  }
+
+  @page{
+    margin:14mm;
   }
 }

@@ -6,7 +6,7 @@ import type { TrendGranularity } from "../../api/types";
 import { LineTrendChart, TrendChart } from "../../components/charts/Chart";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { QueryState } from "../../components/QueryState";
-import { EmptyState, Glass, SegmentedControl } from "../../components/ui";
+import { EmptyState, Panel, SegmentedControl } from "../../components/ui";
 import { formatDate, formatNumber, formatPercent } from "../../lib/format";
 
 const GRANULARITY_OPTIONS = [
@@ -113,7 +113,7 @@ export function TrendsPage() {
 
             <section className="stack">
               <h2>Breakdown</h2>
-              <Glass className="table-scroll">
+              <Panel className="table-scroll">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -154,7 +154,7 @@ export function TrendsPage() {
                     ))}
                   </tbody>
                 </table>
-              </Glass>
+              </Panel>
             </section>
           </div>
         )}

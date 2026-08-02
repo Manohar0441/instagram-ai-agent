@@ -6,8 +6,10 @@ from app.services.ai_generation import (
     AIGenerationError,
     AINotConfiguredError,
     AIProviderError,
+    AIRateLimitedError,
     ProviderError,
     build_llm,
+    wrap_provider_error,
 )
 from app.services.ai_prompts import SYSTEM_PROMPT
 from app.services.ai_tools import build_tools
@@ -15,7 +17,13 @@ from app.services.analytics_service import AnalyticsService
 from app.services.query_analysis import REFUSAL_MESSAGE, QueryAnalysis, analyze_query
 
 # Re-exported for backward compatibility - previously defined here.
-__all__ = ["AIGenerationError", "AINotConfiguredError", "AIProviderError", "AIService"]
+__all__ = [
+    "AIGenerationError",
+    "AINotConfiguredError",
+    "AIProviderError",
+    "AIRateLimitedError",
+    "AIService",
+]
 
 
 class AIService:
@@ -64,7 +72,7 @@ class AIService:
                 recursion_limit=settings.AI_RECURSION_LIMIT,
             )
         except ProviderError as exc:
-            raise AIProviderError(f"The AI provider request failed: {exc}") from exc
+            raise wrap_provider_error(exc) from exc
 
         return ChatResponse(
             response=response_text,

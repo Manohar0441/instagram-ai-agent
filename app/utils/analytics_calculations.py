@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal, TypeVar
 
+from app.schemas.analytics import MediaAnalyticsResponse
+
 T = TypeVar("T")
 
 Granularity = Literal["daily", "weekly", "monthly"]
@@ -69,6 +71,27 @@ def average_or_none(values: list[float]) -> float | None:
     if not values:
         return None
     return round(sum(values) / len(values), 2)
+
+
+def published_within(
+    media_analytics: list[MediaAnalyticsResponse], since: datetime
+) -> list[MediaAnalyticsResponse]:
+    """Keep only posts published at or after `since`.
+
+    Posts with no recorded publish time are excluded rather than assumed
+    recent - including them would silently misattribute undated content to
+    whatever window the caller asked about. Takes `since` rather than a day
+    count so a caller that already computed it (e.g. to also query
+    snapshots for the same window) doesn't pay a second, slightly-later
+    `datetime.now()` call for the same cutoff. Shared by AnalyticsService
+    (ranking, trend bucketing) and RecommendationService (posting
+    frequency) so the "what counts as in-window" rule lives in one place.
+    """
+    return [
+        item
+        for item in media_analytics
+        if item.posted_at is not None and as_aware_utc(item.posted_at) >= since
+    ]
 
 
 def rank_content(

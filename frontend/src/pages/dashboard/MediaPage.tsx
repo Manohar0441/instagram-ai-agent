@@ -6,7 +6,7 @@ import { getMediaAnalytics } from "../../api/analytics";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { MediaTable } from "../../components/MediaTable";
 import { QueryState } from "../../components/QueryState";
-import { EmptyState, Glass, SegmentedControl } from "../../components/ui";
+import { EmptyState, Panel, SegmentedControl } from "../../components/ui";
 
 const TYPE_OPTIONS = [
   { value: "", label: "All" },
@@ -67,9 +67,9 @@ export function MediaPage() {
             <p className="muted text-sm">
               {items.length} post{items.length === 1 ? "" : "s"}
             </p>
-            <Glass>
+            <Panel>
               <MediaTable items={items} />
-            </Glass>
+            </Panel>
           </div>
         )}
       </QueryState>

@@ -1,69 +1,42 @@
 import pytest
 
+from tests.conftest import USER_PASSWORD
+
 pytestmark = pytest.mark.api
 
-REGISTRATION = {
-    "username": "newuser",
-    "full_name": "New User",
-    "email": "new@example.com",
-    "password": "supersecret123",
-}
 
+class TestRegistrationIsDisabled:
+    """Regression test: this app has exactly one user, created directly in
+    the database (scripts/create_user.py) - self-service registration must
+    stay unreachable, not just unlinked from the login page."""
 
-class TestRegister:
-    def test_creates_an_account(self, client):
-        response = client.post("/api/v1/auth/register", json=REGISTRATION)
-        assert response.status_code == 201
-        assert response.json()["email"] == "new@example.com"
-
-    def test_never_returns_the_password_or_its_hash(self, client):
-        body = client.post("/api/v1/auth/register", json=REGISTRATION).json()
-        assert "password" not in body
-        assert "hashed_password" not in body
-
-    def test_rejects_a_duplicate_username(self, client):
-        client.post("/api/v1/auth/register", json=REGISTRATION)
+    def test_there_is_no_register_endpoint(self, client):
         response = client.post(
-            "/api/v1/auth/register", json={**REGISTRATION, "email": "other@example.com"}
+            "/api/v1/auth/register",
+            json={
+                "username": "intruder",
+                "full_name": "Intruder",
+                "email": "intruder@example.com",
+                "password": "supersecret123",
+            },
         )
-        assert response.status_code == 409
-
-    def test_rejects_a_duplicate_email(self, client):
-        client.post("/api/v1/auth/register", json=REGISTRATION)
-        response = client.post(
-            "/api/v1/auth/register", json={**REGISTRATION, "username": "different"}
-        )
-        assert response.status_code == 409
-
-    @pytest.mark.parametrize(
-        "override, reason",
-        [
-            ({"email": "not-an-email"}, "malformed email"),
-            ({"password": "short"}, "password below the minimum length"),
-            ({"username": ""}, "empty username"),
-        ],
-    )
-    def test_rejects_invalid_input(self, client, override, reason):
-        response = client.post("/api/v1/auth/register", json={**REGISTRATION, **override})
-        assert response.status_code == 422, reason
+        assert response.status_code in (404, 405)
 
 
 class TestLogin:
-    def test_issues_a_bearer_token(self, client):
-        client.post("/api/v1/auth/register", json=REGISTRATION)
+    def test_issues_a_bearer_token(self, client, db_user):
         response = client.post(
             "/api/v1/auth/login",
-            data={"username": "new@example.com", "password": "supersecret123"},
+            data={"username": "creator1@example.com", "password": USER_PASSWORD},
         )
         assert response.status_code == 200
         assert response.json()["token_type"] == "bearer"
         assert response.json()["access_token"]
 
-    def test_rejects_a_wrong_password(self, client):
-        client.post("/api/v1/auth/register", json=REGISTRATION)
+    def test_rejects_a_wrong_password(self, client, db_user):
         response = client.post(
             "/api/v1/auth/login",
-            data={"username": "new@example.com", "password": "wrong-password"},
+            data={"username": "creator1@example.com", "password": "wrong-password"},
         )
         assert response.status_code == 401
 

@@ -6,7 +6,7 @@ import { clearKey, setKey } from "../api/ai";
 import { ApiError } from "../api/client";
 import { disconnect, syncInsights, syncMedia } from "../api/instagram";
 import { PageHeader } from "../components/layout/PageHeader";
-import { Button, Callout, Field, LoadingPage } from "../components/ui";
+import { Button, Callout, Field, LoadingPage, Panel } from "../components/ui";
 import { formatDate, formatNumber } from "../lib/format";
 import {
   AI_KEY_QUERY,
@@ -177,44 +177,34 @@ export function SettingsPage() {
 
           {account ? (
             <>
-              <dl className="stack-sm" style={{ fontSize: "var(--text-sm)" }}>
-                <div className="row">
-                  <dt className="muted" style={{ minWidth: "10rem" }}>
-                    Username
-                  </dt>
-                  <dd className="mono">@{account.username}</dd>
-                </div>
-                <div className="row">
-                  <dt className="muted" style={{ minWidth: "10rem" }}>
-                    Account type
-                  </dt>
-                  <dd>{account.account_type ?? "—"}</dd>
-                </div>
-                <div className="row">
-                  <dt className="muted" style={{ minWidth: "10rem" }}>
-                    Followers
-                  </dt>
-                  <dd className="tabular">{formatNumber(account.followers_count)}</dd>
-                </div>
-                <div className="row">
-                  <dt className="muted" style={{ minWidth: "10rem" }}>
-                    Posts
-                  </dt>
-                  <dd className="tabular">{formatNumber(account.media_count)}</dd>
-                </div>
-                <div className="row">
-                  <dt className="muted" style={{ minWidth: "10rem" }}>
-                    Connected
-                  </dt>
-                  <dd>{formatDate(account.connected_at)}</dd>
-                </div>
-                <div className="row">
-                  <dt className="muted" style={{ minWidth: "10rem" }}>
-                    Token expires
-                  </dt>
-                  <dd>{formatDate(account.token_expires_at)}</dd>
-                </div>
-              </dl>
+              <Panel className="detail-list">
+                <dl className="stack-sm">
+                  <div className="detail-row">
+                    <dt>Username</dt>
+                    <dd className="mono">@{account.username}</dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>Account type</dt>
+                    <dd>{account.account_type ?? "—"}</dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>Followers</dt>
+                    <dd className="tabular">{formatNumber(account.followers_count)}</dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>Posts</dt>
+                    <dd className="tabular">{formatNumber(account.media_count)}</dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>Connected</dt>
+                    <dd>{formatDate(account.connected_at)}</dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>Token expires</dt>
+                    <dd>{formatDate(account.token_expires_at)}</dd>
+                  </div>
+                </dl>
+              </Panel>
 
               {sync.isError && <Callout tone="error">{errorMessage(sync.error)}</Callout>}
               {disconnectAccount.isError && (

@@ -14,8 +14,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Glass } from "../ui";
-import "./charts.css";
+import { Panel } from "../ui";
 
 export interface ChartPoint {
   label: string;
@@ -28,14 +27,14 @@ export interface ChartPoint {
  * chart component duplicating the lookup. */
 function themeColors() {
   if (typeof window === "undefined") {
-    return { accent: "#e5261f", ink: "#0d0d0f", muted: "#5f6169", rule: "#e5e5e5" };
+    return { accent: "#da291c", ink: "#101010", muted: "#6d6d6d", rule: "#d8d8d8" };
   }
   const styles = getComputedStyle(document.documentElement);
   return {
-    accent: styles.getPropertyValue("--color-accent").trim() || "#e5261f",
-    ink: styles.getPropertyValue("--color-ink").trim() || "#0d0d0f",
-    muted: styles.getPropertyValue("--color-ink-muted").trim() || "#5f6169",
-    rule: styles.getPropertyValue("--color-rule").trim() || "#e5e5e5",
+    accent: styles.getPropertyValue("--accent").trim() || "#da291c",
+    ink: styles.getPropertyValue("--text").trim() || "#101010",
+    muted: styles.getPropertyValue("--muted").trim() || "#6d6d6d",
+    rule: styles.getPropertyValue("--line").trim() || "#d8d8d8",
   };
 }
 
@@ -46,29 +45,31 @@ function ChartFrame({
   caption,
   children,
   height = 260,
+  width,
 }: {
   title?: string;
   caption?: ReactNode;
   children: ReactNode;
   height?: number;
+  width?: number;
 }) {
   return (
-    <Glass className="chart-panel">
+    <Panel className="chart-panel">
       {title && <h3 className="chart-panel__title">{title}</h3>}
-      <div style={{ width: "100%", height }}>{children}</div>
+      <div style={{ width: width ?? "100%", height }}>{children}</div>
       {caption && <p className="chart-panel__caption">{caption}</p>}
-    </Glass>
+    </Panel>
   );
 }
 
 function EmptyChart({ title }: { title?: string }) {
   return (
-    <Glass className="chart-panel">
+    <Panel className="chart-panel">
       {title && <h3 className="chart-panel__title">{title}</h3>}
       <p className="chart-panel__empty">
         Not enough measured data to plot this yet.
       </p>
-    </Glass>
+    </Panel>
   );
 }
 
@@ -76,11 +77,10 @@ function EmptyChart({ title }: { title?: string }) {
 function chartTooltip(colors: ReturnType<typeof themeColors>) {
   return {
     contentStyle: {
-      background: "var(--glass-bg-strong)",
-      backdropFilter: "blur(16px)",
-      border: `1px solid ${colors.rule}`,
-      borderRadius: "var(--radius-sm)",
-      boxShadow: "var(--shadow)",
+      background: "var(--surface)",
+      border: `2px solid ${colors.ink}`,
+      borderRadius: 0,
+      boxShadow: "4px 4px 0 var(--shadow)",
       fontSize: 12,
       color: colors.ink,
     },
@@ -99,12 +99,16 @@ export function TrendChart({
   caption,
   seriesName = "Value",
   height,
+  width,
 }: {
   points: ChartPoint[];
   title?: string;
   caption?: ReactNode;
   seriesName?: string;
   height?: number;
+  /** Fixed pixel width, bypassing ResponsiveContainer's ResizeObserver -
+   *  needed in print layouts, where it reliably renders blank. */
+  width?: number;
 }) {
   if (!hasData(points)) return <EmptyChart title={title} />;
 
@@ -112,8 +116,8 @@ export function TrendChart({
   const tooltip = chartTooltip(colors);
 
   return (
-    <ChartFrame title={title} caption={caption} height={height}>
-      <ResponsiveContainer width="100%" height="100%">
+    <ChartFrame title={title} caption={caption} height={height} width={width}>
+      <ResponsiveContainer width={width ?? "100%"} height="100%">
         <AreaChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
@@ -160,12 +164,14 @@ export function LineTrendChart({
   caption,
   seriesName = "Value",
   height,
+  width,
 }: {
   points: ChartPoint[];
   title?: string;
   caption?: ReactNode;
   seriesName?: string;
   height?: number;
+  width?: number;
 }) {
   if (!hasData(points)) return <EmptyChart title={title} />;
 
@@ -173,8 +179,8 @@ export function LineTrendChart({
   const tooltip = chartTooltip(colors);
 
   return (
-    <ChartFrame title={title} caption={caption} height={height}>
-      <ResponsiveContainer width="100%" height="100%">
+    <ChartFrame title={title} caption={caption} height={height} width={width}>
+      <ResponsiveContainer width={width ?? "100%"} height="100%">
         <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid stroke={colors.rule} vertical={false} />
           <XAxis
@@ -212,11 +218,13 @@ export function RankBarChart({
   title,
   caption,
   height,
+  width,
 }: {
   points: ChartPoint[];
   title?: string;
   caption?: ReactNode;
   height?: number;
+  width?: number;
 }) {
   const measured = points.filter((point) => point.value !== null);
   if (measured.length === 0) return <EmptyChart title={title} />;
@@ -226,8 +234,13 @@ export function RankBarChart({
   const best = Math.max(...measured.map((point) => point.value as number));
 
   return (
-    <ChartFrame title={title} caption={caption} height={height ?? points.length * 40 + 32}>
-      <ResponsiveContainer width="100%" height="100%">
+    <ChartFrame
+      title={title}
+      caption={caption}
+      height={height ?? points.length * 40 + 32}
+      width={width}
+    >
+      <ResponsiveContainer width={width ?? "100%"} height="100%">
         <BarChart
           data={points}
           layout="vertical"

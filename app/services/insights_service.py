@@ -1,19 +1,16 @@
 from datetime import datetime, timezone
-from typing import Any
 
 from app.core.settings import settings
 from app.integrations.ai_agent import generate_structured_response
-from app.schemas.analytics import MediaAnalyticsResponse
 from app.schemas.insights import Insight, InsightNarratives, PerformanceInsightsResponse
+from app.services.ai_context import build_insights_context
 from app.services.ai_credential_service import AICredentialService
-from app.services.ai_generation import AIProviderError, ProviderError, build_llm
+from app.services.ai_generation import ProviderError, build_llm, wrap_provider_error
 from app.services.analytics_service import AnalyticsService
 from app.services.insight_prompts import INSIGHTS_SYSTEM_PROMPT, build_insights_user_prompt
 from app.utils.cache import get_or_generate
-from app.utils.insight_calculations import posting_time_breakdown
 
 DEFAULT_INSIGHTS_LOOKBACK_DAYS = 30
-MEDIA_SAMPLE_LIMIT = 50
 
 
 class InsightsService:
@@ -52,43 +49,32 @@ class InsightsService:
 
     def _generate_insights(self, user_id: int, days: int) -> PerformanceInsightsResponse:
         api_key = self.credential_service.resolve_api_key(user_id)
-
-        account = self.analytics_service.get_account_analytics(user_id, days=days)
-        media = self.analytics_service.get_media_analytics(user_id, limit=MEDIA_SAMPLE_LIMIT)
-        trends = self.analytics_service.get_trends(user_id, granularity="daily", days=days)
-        timing = posting_time_breakdown(media)
-        content_summary = self._content_summary(media)
-
-        context = {
-            "period_days": days,
-            "account_analytics": account.model_dump(mode="json"),
-            "content_summary": content_summary,
-            "trend_points": [point.model_dump(mode="json") for point in trends.points],
-            "posting_time_breakdown": timing,
-        }
+        ctx = build_insights_context(self.analytics_service, user_id, days)
 
         try:
             narratives = generate_structured_response(
                 build_llm(api_key),
                 INSIGHTS_SYSTEM_PROMPT,
-                build_insights_user_prompt(context),
+                build_insights_user_prompt(ctx.prompt_context),
                 InsightNarratives,
             )
         except ProviderError as exc:
-            raise AIProviderError(f"The AI provider request failed: {exc}") from exc
+            raise wrap_provider_error(exc) from exc
 
-        follower_growth = account.follower_growth.model_dump(mode="json") if account.follower_growth else None
+        follower_growth = (
+            ctx.account.follower_growth.model_dump(mode="json") if ctx.account.follower_growth else None
+        )
 
         return PerformanceInsightsResponse(
             account_performance=Insight(
                 title="Account Performance",
                 summary=narratives.account_performance,
-                supporting_data=account.model_dump(mode="json"),
+                supporting_data=ctx.account.model_dump(mode="json"),
             ),
             content_performance=Insight(
                 title="Content Performance",
                 summary=narratives.content_performance,
-                supporting_data=content_summary,
+                supporting_data=ctx.content_summary,
             ),
             growth_trend=Insight(
                 title="Growth Trend",
@@ -98,25 +84,12 @@ class InsightsService:
             engagement_trend=Insight(
                 title="Engagement Trend",
                 summary=narratives.engagement_trend,
-                supporting_data={"trend_points": context["trend_points"]},
+                supporting_data={"trend_points": ctx.prompt_context["trend_points"]},
             ),
             audience_behavior=Insight(
                 title="Audience Behavior",
                 summary=narratives.audience_behavior,
-                supporting_data=timing,
+                supporting_data=ctx.posting_time_breakdown,
             ),
             generated_at=datetime.now(timezone.utc),
         )
-
-    @staticmethod
-    def _content_summary(media: list[MediaAnalyticsResponse]) -> dict[str, Any]:
-        if not media:
-            return {"post_count": 0}
-
-        rates = [item.engagement_rate for item in media if item.engagement_rate is not None]
-        return {
-            "post_count": len(media),
-            "average_engagement_rate": round(sum(rates) / len(rates), 2) if rates else None,
-            "total_likes": sum(item.likes or 0 for item in media),
-            "total_comments": sum(item.comments or 0 for item in media),
-        }

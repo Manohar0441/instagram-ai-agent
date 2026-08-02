@@ -28,8 +28,7 @@ PROTECTED_ENDPOINTS = [
     ("GET", "/api/v1/recommendations"),
     ("GET", "/api/v1/reports/weekly"),
     ("GET", "/api/v1/reports/monthly"),
-    ("POST", "/api/v1/jobs/reports/weekly"),
-    ("GET", "/api/v1/jobs/some-job-id"),
+    ("GET", "/api/v1/export/full-report"),
 ]
 
 PUBLIC_ENDPOINTS = [
@@ -38,7 +37,6 @@ PUBLIC_ENDPOINTS = [
     ("GET", "/health/live"),
     ("GET", "/health/ready"),
     ("GET", "/metrics"),
-    ("POST", "/api/v1/auth/register"),
     ("POST", "/api/v1/auth/login"),
     # The OAuth callback cannot carry an Authorization header - a browser
     # redirect from Meta has none. It authenticates via its signed state
@@ -89,6 +87,7 @@ class TestNoCrossUserAccess:
             "/api/v1/analytics/media",
             "/api/v1/analytics/dashboard",
             "/api/v1/instagram/profile",
+            "/api/v1/export/full-report",
         ],
     )
     def test_another_users_instagram_data_is_not_reachable(

@@ -1,27 +1,25 @@
 """Shared pytest fixtures.
 
-Tests run against an in-memory SQLite database, a fakeredis instance, and
+Tests run against an in-memory SQLite database, a moto-mocked DynamoDB, and
 stubbed LLM/Graph API clients - no external services, no network, no API
 spend. Every external boundary the app depends on is replaced here rather
 than in individual tests, so tests stay focused on behavior.
 """
 from datetime import datetime, timedelta, timezone
 
-import fakeredis
+import boto3
 import pytest
 from fastapi.testclient import TestClient
-from rq import Queue
+from moto import mock_aws
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-import app.integrations.redis_client as redis_client_module
-import app.integrations.task_queue as task_queue_module
+import app.integrations.dynamodb_client as dynamodb_client_module
 import app.services.ai_credential_service as credential_module
 import app.services.insights_service as insights_module
 import app.services.recommendation_service as recommendation_module
 import app.services.report_service as report_module
-import app.workers.jobs as jobs_module
 from app.core.rate_limit import limiter
 from app.core.settings import settings
 from app.database.base import Base
@@ -77,37 +75,49 @@ def _clean_tables(engine):
             connection.execute(table.delete())
 
 
-# ------------------------------------------------------------------- redis
+# -------------------------------------------------------------- dynamodb
 
 
 @pytest.fixture(autouse=True)
-def fake_redis():
-    """Replace the cache Redis client with an isolated fake for every test.
+def fake_dynamodb(monkeypatch):
+    """Replace the cache DynamoDB table with an isolated moto-mocked one for every test.
 
-    Without this, cache reads/writes attempt a real localhost connection and
-    each one blocks for seconds before failing - correct behavior (the cache
-    fails open), but far too slow to run a suite against.
+    Without this, cache reads/writes would need real AWS credentials and
+    network access - moto intercepts boto3 calls entirely instead, so tests
+    stay self-contained regardless of what's in the local .env file (moto
+    still requires *some* credential-shaped values to exist, hence the
+    dummy ones below - it never checks they're real).
+
+    Set as real environment variables (not Settings fields) to match
+    get_cache_table()'s production path, which - now that it no longer
+    shadows Lambda's own injected credentials (see its docstring) - reads
+    credentials via boto3's default chain rather than from Settings.
     """
-    server = fakeredis.FakeStrictRedis(decode_responses=True)
-    original = redis_client_module._client
-    redis_client_module._client = server
-    yield server
-    redis_client_module._client = original
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setattr(settings, "DYNAMODB_ENDPOINT_URL", None)
 
+    with mock_aws():
+        # Force the process-wide singleton to rebuild against this test's
+        # mocked backend rather than reusing a client from a previous test.
+        dynamodb_client_module._table = None
 
-@pytest.fixture
-def job_queue():
-    """An RQ queue that executes jobs inline, on its own fake Redis.
-
-    RQ stores pickled payloads and so needs a bytes-mode connection,
-    separate from the str-mode one the cache uses.
-    """
-    server = fakeredis.FakeStrictRedis()
-    queue = Queue("default", connection=server, is_async=False)
-    original = task_queue_module._queue
-    task_queue_module._queue = queue
-    yield queue
-    task_queue_module._queue = original
+        client = boto3.client(
+            "dynamodb",
+            region_name="us-east-1",
+            aws_access_key_id="testing",
+            aws_secret_access_key="testing",
+        )
+        client.create_table(
+            TableName=settings.DYNAMODB_CACHE_TABLE,
+            KeySchema=[{"AttributeName": "cache_key", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "cache_key", "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        yield client
+        dynamodb_client_module._table = None
 
 
 # ------------------------------------------------------------- rate limits
@@ -195,16 +205,21 @@ def non_raising_client(session_factory):
 USER_PASSWORD = "supersecret123"
 
 
-def _register_and_login(client, username: str, email: str) -> dict[str, str]:
-    client.post(
-        "/api/v1/auth/register",
-        json={
-            "username": username,
-            "full_name": username.title(),
-            "email": email,
-            "password": USER_PASSWORD,
-        },
-    )
+def _seed_user_and_login(client, db, username: str, email: str) -> dict[str, str]:
+    """Create a user row directly and log in over HTTP.
+
+    There is no POST /auth/register endpoint (see the comment at the top of
+    app/api/v1/endpoints/auth.py) - this mirrors what scripts/create_user.py
+    does in production, minus the interactive password prompt.
+    """
+    db.add(User(
+        username=username,
+        full_name=username.title(),
+        email=email,
+        hashed_password=hash_password(USER_PASSWORD),
+    ))
+    db.commit()
+
     response = client.post(
         "/api/v1/auth/login",
         data={"username": email, "password": USER_PASSWORD},
@@ -213,15 +228,15 @@ def _register_and_login(client, username: str, email: str) -> dict[str, str]:
 
 
 @pytest.fixture
-def auth_headers(client):
+def auth_headers(client, db):
     """Bearer headers for the primary test user (user id 1)."""
-    return _register_and_login(client, "creator1", "creator1@example.com")
+    return _seed_user_and_login(client, db, "creator1", "creator1@example.com")
 
 
 @pytest.fixture
-def other_auth_headers(client, auth_headers):
+def other_auth_headers(client, db, auth_headers):
     """Bearer headers for a second, unrelated user - used for isolation tests."""
-    return _register_and_login(client, "otheruser", "other@example.com")
+    return _seed_user_and_login(client, db, "otheruser", "other@example.com")
 
 
 # ------------------------------------------------------- instagram/analytics
@@ -334,16 +349,16 @@ def seed_connected_account(
 
     # media_1 gets two snapshots; only the newer one should ever be used.
     db.add(MediaInsight(
-        media_id=media_1.id, metrics={"reach": 800, "impressions": 900, "saved": 1},
+        media_id=media_1.id, metrics={"reach": 800, "impressions": 900, "saves": 1},
         fetched_at=now - timedelta(days=2),
     ))
     db.add(MediaInsight(
-        media_id=media_1.id, metrics={"reach": 1000, "impressions": 1200, "saved": 5},
+        media_id=media_1.id, metrics={"reach": 1000, "impressions": 1200, "saves": 5},
         fetched_at=now - timedelta(hours=3),
     ))
     db.add(MediaInsight(
         media_id=media_2.id,
-        metrics={"reach": 8000, "impressions": 9000, "saved": 100, "shares": 60,
+        metrics={"reach": 8000, "impressions": 9000, "saves": 100, "shares": 60,
                  "ig_reels_avg_watch_time": 4500},
         fetched_at=now - timedelta(hours=1),
     ))
@@ -384,7 +399,7 @@ class FakeGraphClient:
         ]
 
     def get_media_insights(self, media_id, media_type, access_token):
-        return {"reach": 400, "impressions": 500, "saved": 5}
+        return {"reach": 400, "impressions": 500, "saves": 5}
 
     def get_account_insights(self, instagram_user_id, access_token, period="day"):
         return {"reach": 4000, "impressions": 5000, "profile_views": 100}
@@ -456,14 +471,3 @@ def fake_structured_llm(monkeypatch):
     for module in (insights_module, recommendation_module, report_module):
         monkeypatch.setattr(module, "build_llm", lambda api_key: llm)
     return llm
-
-
-@pytest.fixture
-def worker_db(session_factory, monkeypatch):
-    """Point background jobs at the test database.
-
-    generate_report_job builds its own session (it runs in a worker process
-    with no request context to inject from), so the client's dependency
-    override doesn't reach it.
-    """
-    monkeypatch.setattr(jobs_module, "SessionLocal", session_factory)

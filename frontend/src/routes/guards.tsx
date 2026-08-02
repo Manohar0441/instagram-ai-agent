@@ -17,7 +17,7 @@ export function RequireAuth() {
   return <Outlet />;
 }
 
-/** Keeps signed-in users off the login and register screens. */
+/** Keeps signed-in users off the login screen. */
 export function RedirectIfAuthenticated() {
   const { isAuthenticated } = useAuth();
 

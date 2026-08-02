@@ -1,9 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/useAuth";
-import "../styles/swiss.css";
 
 export function LoginPage() {
   const { signIn } = useAuth();
@@ -172,21 +171,6 @@ export function LoginPage() {
               </svg>
             </button>
           </form>
-
-          <div className="swiss-divider">
-            <span>or</span>
-          </div>
-
-          <footer className="swiss-footer">
-            <span className="footer-text">No account yet?</span>{" "}
-            <Link to="/register" className="swiss-link">
-              <span>Create one</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-                <polyline points="12 5 19 12 12 19"></polyline>
-              </svg>
-            </Link>
-          </footer>
         </div>
       </main>
     </div>

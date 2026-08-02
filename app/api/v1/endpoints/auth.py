@@ -6,64 +6,22 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.core.rate_limit import limiter
 from app.core.settings import settings
 from app.dependencies.auth import get_current_user
-from app.dependencies.services import get_auth_service, get_user_service
+from app.dependencies.services import get_auth_service
 from app.models.user import User
 from app.schemas.auth import Token
-from app.schemas.user import UserCreate, UserResponse
+from app.schemas.user import UserResponse
 from app.services.auth_service import AuthService, InvalidCredentialsError
-from app.services.user_service import (
-    DuplicateEmailError,
-    DuplicateUsernameError,
-    UserService,
-    UserServiceError,
-)
+
+# There is deliberately no POST /auth/register route. This is a single-user
+# app - the one account is created directly in the database with
+# `python -m scripts.create_user` (see Documents/DEPLOYMENT.md) - so that
+# self-service registration is unreachable by design, not merely unlinked
+# from the UI.
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 AuthServiceDependency = Annotated[AuthService, Depends(get_auth_service)]
-UserServiceDependency = Annotated[UserService, Depends(get_user_service)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
-
-
-@router.post(
-    "/register",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Register user",
-    description="Create a new user account.",
-    operation_id="registerUser",
-    responses={
-        status.HTTP_201_CREATED: {
-            "description": "User registered successfully."
-        },
-        status.HTTP_409_CONFLICT: {
-            "description": "The requested username or email is already in use."
-        },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {
-            "description": "The user could not be registered."
-        },
-    },
-)
-@limiter.limit(settings.RATE_LIMIT_AUTH)
-def register(
-    request: Request,
-    user_data: UserCreate,
-    user_service: UserServiceDependency,
-) -> UserResponse:
-    """Register a new user account."""
-    try:
-        user = user_service.create_user(user_data)
-        return UserResponse.model_validate(user)
-    except (DuplicateUsernameError, DuplicateEmailError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
-    except UserServiceError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
-        ) from exc
 
 
 @router.post(

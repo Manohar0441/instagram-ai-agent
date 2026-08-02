@@ -1,16 +1,14 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { getReport } from "../../api/insights";
-import { enqueueReport } from "../../api/jobs";
 import type { PerformanceReportResponse, ReportPeriod } from "../../api/types";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { MediaTable } from "../../components/MediaTable";
-import { ApiErrorState, QueryState } from "../../components/QueryState";
-import { Button, Callout, SegmentedControl } from "../../components/ui";
-import { useJobPolling } from "../../hooks/useJobPolling";
+import { QueryState } from "../../components/QueryState";
+import { Button, SegmentedControl } from "../../components/ui";
 import { formatDate, formatDateTime } from "../../lib/format";
-import "../ai/ai.css";
 
 const PERIOD_OPTIONS = [
   { value: "weekly", label: "Weekly" },
@@ -69,28 +67,11 @@ function ReportBody({ report }: { report: PerformanceReportResponse }) {
 
 export function ReportsPage() {
   const [period, setPeriod] = useState<ReportPeriod>("weekly");
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
 
   const report = useQuery({
     queryKey: ["report", period],
     queryFn: () => getReport(period),
   });
-
-  const enqueue = useMutation({
-    mutationFn: () => enqueueReport(period),
-    onSuccess: (response) => {
-      setJobId(response.job_id);
-      setStartedAt(Date.now());
-    },
-  });
-
-  const polling = useJobPolling(jobId, startedAt);
-
-  // A finished background job supersedes the synchronous result.
-  const displayed = polling.job?.status === "finished" && polling.job.result
-    ? polling.job.result
-    : report.data;
 
   return (
     <>
@@ -104,52 +85,27 @@ export function ReportsPage() {
               label="Report period"
               options={PERIOD_OPTIONS}
               value={period}
-              onChange={(next) => {
-                setPeriod(next);
-                setJobId(null);
-                setStartedAt(null);
-              }}
+              onChange={setPeriod}
             />
-            <Button
-              small
-              onClick={() => enqueue.mutate()}
-              loading={enqueue.isPending || polling.isPolling}
-            >
-              Regenerate in background
+            <Button small onClick={() => report.refetch()} loading={report.isFetching}>
+              Regenerate
             </Button>
+            <Link to="/reports/full">
+              <Button small variant="primary">
+                Download report
+              </Button>
+            </Link>
           </>
         }
       />
 
       <div className="stack-lg">
-        {enqueue.isError && <ApiErrorState error={enqueue.error} />}
-
-        {polling.isPolling && (
-          <Callout title="Generating in the background">
-            The report is queued with a worker. This page updates itself when
-            it finishes — you can navigate away and come back.
-          </Callout>
-        )}
-
-        {polling.timedOut && (
-          <Callout tone="error" title="Still running">
-            The background job has not finished after five minutes, so polling
-            stopped. Check that the RQ worker is running, then try again.
-          </Callout>
-        )}
-
-        {polling.job?.status === "failed" && (
-          <Callout tone="error" title="Background job failed">
-            {polling.job.error ?? "The worker did not report a reason."}
-          </Callout>
-        )}
-
         <QueryState
           isLoading={report.isLoading}
           error={report.error}
           loadingLabel="Generating report"
         >
-          {displayed && <ReportBody report={displayed} />}
+          {report.data && <ReportBody report={report.data} />}
         </QueryState>
       </div>
     </>
