@@ -2,7 +2,13 @@ import pytest
 from langchain_google_genai._common import GoogleGenerativeAIError
 
 import app.services.ai_generation as generation
-from app.services.ai_generation import AIKeyRejectedError, verify_api_key
+from app.services.ai_generation import (
+    AIKeyRejectedError,
+    AIProviderError,
+    AIRateLimitedError,
+    verify_api_key,
+    wrap_provider_error,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -80,3 +86,45 @@ class TestTolerance:
         monkeypatch.setattr(generation, "build_llm", lambda api_key: WorkingLLM())
 
         verify_api_key("AQ.some-candidate-key")
+
+
+# The exact 429 payload Gemini's free tier returns, in full - this is what
+# used to leak straight into the chat UI as a wall of raw JSON.
+QUOTA_ERROR = (
+    "Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. "
+    "{'error': {'code': 429, 'message': 'You exceeded your current quota, please check "
+    "your plan and billing details.', 'status': 'RESOURCE_EXHAUSTED', "
+    "'details': [{'@type': 'type.googleapis.com/google.rpc.QuotaFailure', "
+    "'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_"
+    "free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier'}]}, "
+    "{'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '45s'}]}}"
+)
+
+
+class TestWrapProviderError:
+    """wrap_provider_error is what stands between a raw provider exception
+    and the user-facing chat/insights/report error - it must never leak the
+    provider's payload, and a rate limit must be told apart from any other
+    failure so the frontend can show distinct copy."""
+
+    def test_quota_exhaustion_is_a_rate_limit_error(self):
+        result = wrap_provider_error(GoogleGenerativeAIError(QUOTA_ERROR))
+
+        assert isinstance(result, AIRateLimitedError)
+        assert "rate limit" in str(result).lower()
+
+    def test_rate_limit_message_does_not_leak_the_raw_payload(self):
+        result = wrap_provider_error(GoogleGenerativeAIError(QUOTA_ERROR))
+
+        assert "generativelanguage.googleapis.com" not in str(result)
+        assert "RESOURCE_EXHAUSTED" not in str(result)
+        assert "quotaMetric" not in str(result)
+
+    def test_other_provider_failures_are_a_generic_error(self):
+        result = wrap_provider_error(
+            GoogleGenerativeAIError("503 UNAVAILABLE. The service is currently unavailable.")
+        )
+
+        assert isinstance(result, AIProviderError)
+        assert not isinstance(result, AIRateLimitedError)
+        assert "UNAVAILABLE" not in str(result)

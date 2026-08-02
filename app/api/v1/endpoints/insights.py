@@ -16,7 +16,12 @@ from app.schemas.insights import (
     PerformanceReportResponse,
     RecommendationsResponse,
 )
-from app.services.ai_generation import AIGenerationError, AINotConfiguredError, AIProviderError
+from app.services.ai_generation import (
+    AIGenerationError,
+    AINotConfiguredError,
+    AIProviderError,
+    AIRateLimitedError,
+)
 from app.services.insights_service import InsightsService
 from app.services.instagram_service import InstagramAccountNotConnectedError
 from app.services.recommendation_service import RecommendationService
@@ -31,6 +36,7 @@ ReportServiceDependency = Annotated[ReportService, Depends(get_report_service)]
 
 _COMMON_RESPONSES = {
     status.HTTP_404_NOT_FOUND: {"description": "No Instagram account is connected."},
+    status.HTTP_429_TOO_MANY_REQUESTS: {"description": "The AI provider's rate limit was reached."},
     status.HTTP_502_BAD_GATEWAY: {"description": "The AI provider request failed."},
     status.HTTP_503_SERVICE_UNAVAILABLE: {"description": "The AI service is not configured."},
 }
@@ -41,6 +47,10 @@ def _handle_error(exc: Exception) -> HTTPException:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     if isinstance(exc, AINotConfiguredError):
         return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+    # AIRateLimitedError is a subclass of AIProviderError - it must be
+    # checked first, or it would always match the AIProviderError branch.
+    if isinstance(exc, AIRateLimitedError):
+        return HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc))
     if isinstance(exc, AIProviderError):
         return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
     return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))

@@ -2,29 +2,26 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react
 import { useId } from "react";
 
 import { Sparkline } from "../charts/Sparkline";
-import "./ui.css";
 
-// -------------------------------------------------------------- Glass
+// -------------------------------------------------------------- Panel
 
-/** The base frosted surface every panel and card is built on. */
-export function Glass({
+/** The base card surface every panel and card is built on: a solid fill,
+ * a firm border, and a hard offset shadow — swiss.css's own idiom. */
+export function Panel({
   as: Tag = "div",
-  strong = false,
   interactive = false,
   className = "",
   children,
   ...rest
 }: {
   as?: "div" | "section" | "article" | "aside";
-  strong?: boolean;
   interactive?: boolean;
   className?: string;
   children: ReactNode;
 } & React.HTMLAttributes<HTMLDivElement>) {
   const classes = [
-    "glass",
-    strong ? "glass-strong" : "",
-    interactive ? "glass-interactive" : "",
+    "swiss-panel",
+    interactive ? "swiss-panel--interactive" : "",
     className,
   ]
     .filter(Boolean)
@@ -205,7 +202,7 @@ export function StatCard({
   );
 
   return (
-    <Glass className="stat-card" interactive>
+    <Panel className="stat-card" interactive>
       <div className="stat-card__head">
         {labelNode}
         {icon && (
@@ -233,7 +230,7 @@ export function StatCard({
           </span>
         )}
       </div>
-    </Glass>
+    </Panel>
   );
 }
 
@@ -251,7 +248,7 @@ export function EmptyState({
   actions?: ReactNode;
 }) {
   return (
-    <Glass className="empty-state">
+    <Panel className="empty-state">
       <span className="empty-state__art" aria-hidden="true">
         {art}
       </span>
@@ -260,7 +257,7 @@ export function EmptyState({
         <div className="empty-state__body">{body}</div>
       </div>
       {actions && <div className="empty-state__actions">{actions}</div>}
-    </Glass>
+    </Panel>
   );
 }
 
@@ -281,11 +278,11 @@ export function SkeletonCards({ count = 4 }: { count?: number }) {
     <div className="grid">
       {Array.from({ length: count }).map((_, index) => (
         <div className="col-3" key={index}>
-          <Glass className="skeleton-card">
+          <Panel className="skeleton-card">
             <div className="skeleton skeleton-line skeleton-line--sm" />
             <div className="skeleton skeleton-line skeleton-line--xl" />
             <div className="skeleton skeleton-line skeleton-line--md" />
-          </Glass>
+          </Panel>
         </div>
       ))}
     </div>
@@ -295,14 +292,14 @@ export function SkeletonCards({ count = 4 }: { count?: number }) {
 export function SkeletonBlock({ lines = 3 }: { lines?: number }) {
   const widths = ["--lg", "--md", "--sm"];
   return (
-    <Glass className="skeleton-card">
+    <Panel className="skeleton-card">
       {Array.from({ length: lines }).map((_, index) => (
         <div
           key={index}
           className={`skeleton skeleton-line skeleton-line${widths[index % widths.length]}`}
         />
       ))}
-    </Glass>
+    </Panel>
   );
 }
 

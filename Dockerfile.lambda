@@ -1,0 +1,18 @@
+# syntax=docker/dockerfile:1
+#
+# Lambda container image. Separate from the root Dockerfile (which builds a
+# uvicorn-serving image for a persistent host) because the Lambda base image
+# has its own runtime/entrypoint contract and packaging layout.
+#
+# No migrations run here - alembic upgrade head is a one-off, run from a
+# local machine or CI against the Neon connection string, never from inside
+# a Lambda invocation (see Documents/DEPLOYMENT.md).
+
+FROM public.ecr.aws/lambda/python:3.12
+
+COPY requirements.txt ${LAMBDA_TASK_ROOT}
+RUN pip install --no-cache-dir -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
+
+COPY app ${LAMBDA_TASK_ROOT}/app
+
+CMD ["app.lambda_handler.handler"]

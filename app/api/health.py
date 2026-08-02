@@ -1,11 +1,15 @@
+import logging
 import time
 
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Response, status
 from sqlalchemy import text
 
 from app.core.settings import settings
 from app.database.session import SessionLocal
-from app.integrations.redis_client import get_redis_client
+from app.integrations.dynamodb_client import get_cache_table
+
+logger = logging.getLogger("app.health")
 
 router = APIRouter(tags=["Health"])
 
@@ -26,11 +30,11 @@ def liveness() -> dict:
 @router.get(
     "/health/ready",
     summary="Readiness check",
-    description="Can this instance serve traffic? Checks database and Redis connectivity.",
+    description="Can this instance serve traffic? Checks database and cache-table connectivity.",
 )
 def readiness(response: Response) -> dict:
     """Readiness probe: verifies the dependencies this app needs to actually serve requests."""
-    checks = {"database": _check_database(), "redis": _check_redis()}
+    checks = {"database": _check_database(), "cache": _check_cache()}
     is_ready = all(checks.values())
     response.status_code = status.HTTP_200_OK if is_ready else status.HTTP_503_SERVICE_UNAVAILABLE
     return {"status": "ready" if is_ready else "not_ready", "checks": checks}
@@ -43,7 +47,7 @@ def readiness(response: Response) -> dict:
 )
 def health(response: Response) -> dict:
     """General health summary combining app metadata with dependency checks."""
-    checks = {"database": _check_database(), "redis": _check_redis()}
+    checks = {"database": _check_database(), "cache": _check_cache()}
     is_healthy = all(checks.values())
     response.status_code = status.HTTP_200_OK if is_healthy else status.HTTP_503_SERVICE_UNAVAILABLE
     return {
@@ -70,8 +74,10 @@ def _check_database() -> bool:
         return False
 
 
-def _check_redis() -> bool:
+def _check_cache() -> bool:
     try:
-        return bool(get_redis_client().ping())
-    except Exception:
+        get_cache_table().get_item(Key={"cache_key": "__health_check__"})
+        return True
+    except ClientError as exc:
+        logger.warning("cache readiness check failed", extra={"error": str(exc)})
         return False

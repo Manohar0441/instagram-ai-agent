@@ -25,14 +25,20 @@ PROFILE_FIELDS = "user_id,username,name,account_type,profile_picture_url,followe
 # they're requested here rather than via the /insights edge.
 MEDIA_FIELDS = "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count"
 
-# Graph API insight metric names as documented for the older API version
-# this app was originally built against. Meta renamed/changed some metrics
-# when moving to Instagram API with Instagram Login; if calls start failing
-# with an "Invalid metric" error, these lists are the first place to check
-# against the pinned INSTAGRAM_GRAPH_API_VERSION and the current API docs.
-ACCOUNT_INSIGHT_METRICS = "impressions,reach,profile_views,accounts_engaged"
-IMAGE_INSIGHT_METRICS = "impressions,reach,engagement,saved"
-VIDEO_INSIGHT_METRICS = "plays,reach,saved,shares"
+# Graph API insight metric names for Instagram API with Instagram Login.
+# "impressions" was removed outright at the account level (no replacement
+# metric - the impressions fields in app/schemas/analytics.py are always
+# None as a result); "profile_views" was deprecated account-wide in Graph
+# API v21 (Jan 2025) with no replacement either - profile_visits is always
+# None as a result too (see AnalyticsService). "engagement" was renamed
+# "total_interactions", and at the *media* level (not account) the save
+# count is "saved", not "saves" - a request containing even one invalid
+# metric name fails for the whole call, not just that metric, so keep these
+# in sync with Meta's current allowed-metrics list if a sync starts failing
+# with an "Invalid metric"/"metric[n] must be one of..." error.
+ACCOUNT_INSIGHT_METRICS = "reach,accounts_engaged"
+IMAGE_INSIGHT_METRICS = "reach,saved"
+VIDEO_INSIGHT_METRICS = "views,reach,saved,shares"
 
 # Reels watch-time metrics are even less stable across API versions than the
 # core set above, so they're fetched as a separate best-effort call - see

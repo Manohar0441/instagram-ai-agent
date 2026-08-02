@@ -12,13 +12,6 @@ export interface Token {
   token_type: string;
 }
 
-export interface UserCreate {
-  username: string;
-  full_name: string;
-  email: string;
-  password: string;
-}
-
 export interface UserResponse {
   id: number;
   username: string;
@@ -226,28 +219,155 @@ export interface PerformanceReportResponse {
   generated_at: string;
 }
 
-// ---------------------------------------------------------------- jobs
+// --------------------------------------------------------------- export
 
-export interface JobEnqueuedResponse {
-  job_id: string;
-  status: "queued";
+export type ExportWindowDays = 7 | 14 | 30 | 90 | 180 | 365;
+
+export interface ContentSummary {
+  post_count: number;
+  average_engagement_rate: number | null;
+  total_likes: number | null;
+  total_comments: number | null;
 }
 
-/** RQ's own status vocabulary, passed through unchanged by the backend. */
-export type JobStatus =
-  | "queued"
-  | "started"
-  | "deferred"
-  | "finished"
-  | "failed"
-  | "stopped"
-  | "scheduled"
-  | "canceled";
+export interface SampleProvenance {
+  limit: number;
+  returned: number;
+  window_filtered: boolean;
+}
 
-export interface JobStatusResponse {
-  job_id: string;
-  status: JobStatus;
-  /** On success this is a PerformanceReportResponse serialized to JSON. */
-  result: PerformanceReportResponse | null;
-  error: string | null;
+export type AIFailureReason =
+  | "not_configured"
+  | "rate_limited"
+  | "provider_error"
+  | "generation_error"
+  | "unexpected_error";
+
+export interface AIFailure {
+  reason: AIFailureReason;
+  message: string;
+  retriable: boolean;
+}
+
+export interface InsightsInputs {
+  period_days: number;
+  account_analytics: AccountAnalyticsResponse;
+  content_summary: ContentSummary;
+  trend_points: Record<string, unknown>[];
+  trend_granularity: TrendGranularity;
+  posting_time_breakdown: Record<string, unknown>;
+  sample: SampleProvenance;
+}
+
+export interface RecommendationsInputs {
+  period_days: number;
+  posting_time_breakdown: Record<string, unknown>;
+  content_format_breakdown: Record<string, unknown>;
+  posting_frequency: Record<string, unknown>;
+  top_performing_content: MediaAnalyticsResponse[];
+  sample: SampleProvenance;
+  recent_sample_size: number;
+}
+
+export interface ReportInputs {
+  period: ReportPeriod;
+  period_start: string;
+  period_end: string;
+  account_analytics: AccountAnalyticsResponse;
+  trend_points: Record<string, unknown>[];
+  trend_granularity: TrendGranularity;
+  top_performing_content: MediaAnalyticsResponse[];
+  underperforming_content: MediaAnalyticsResponse[];
+  content_limit: number;
+}
+
+export interface InsightsSection {
+  status: "ok" | "unavailable";
+  data: PerformanceInsightsResponse | null;
+  failure: AIFailure | null;
+  served_from_cache: boolean;
+  inputs: InsightsInputs;
+}
+
+export interface RecommendationsSection {
+  status: "ok" | "unavailable";
+  data: RecommendationsResponse | null;
+  failure: AIFailure | null;
+  served_from_cache: boolean;
+  inputs: RecommendationsInputs;
+}
+
+export interface ReportSection {
+  status: "ok" | "unavailable";
+  data: PerformanceReportResponse | null;
+  failure: AIFailure | null;
+  served_from_cache: boolean;
+  inputs: ReportInputs;
+  period_label: ReportPeriod;
+  period_days: number;
+  covers_export_window: boolean;
+}
+
+export interface WindowBreakdowns {
+  posting_time: Record<string, unknown>;
+  content_format: Record<string, unknown>;
+  posting_frequency: Record<string, unknown>;
+  content_summary: ContentSummary;
+  sample: SampleProvenance;
+}
+
+export interface ContentInventory {
+  items: MediaAnalyticsResponse[];
+  total_in_window: number;
+  truncated: boolean;
+  limit: number;
+  excluded_undated_count: number;
+}
+
+export interface WindowAnalytics {
+  account: AccountAnalyticsResponse;
+  trends: TrendsResponse;
+  inventory: ContentInventory;
+  top_content: TopContentResponse;
+  bottom_content: TopContentResponse;
+  breakdowns: WindowBreakdowns;
+}
+
+export interface BreakdownDivergence {
+  ai_sample_size: number;
+  window_sample_size: number;
+  differs: boolean;
+  explanation: string;
+}
+
+export interface Methodology {
+  granularity_rule: string;
+  report_period_rule: string;
+  breakdown_divergence: BreakdownDivergence;
+  media_sample_limit: number;
+  inventory_limit: number;
+  ranked_content_limit: number;
+  timezone: "UTC";
+  cache_ttl_seconds: number;
+}
+
+export interface ExportMeta {
+  schema_version: 1;
+  generated_at: string;
+  days: ExportWindowDays;
+  window_start: string;
+  window_end: string;
+  username: string;
+  instagram_user_id: string;
+  ai_sections_ok: number;
+  ai_sections_total: 3;
+}
+
+export interface FullReportExportResponse {
+  meta: ExportMeta;
+  methodology: Methodology;
+  analytics: WindowAnalytics;
+  insights: InsightsSection;
+  recommendations: RecommendationsSection;
+  report: ReportSection;
 }

@@ -19,17 +19,30 @@ from app.schemas.analytics import (
     TrendPoint,
     TrendsResponse,
 )
+from app.schemas.export import (
+    ContentInventory,
+    ContentSummary,
+    SampleProvenance,
+    WindowAnalytics,
+    WindowBreakdowns,
+)
 from app.services.instagram_service import InstagramAccountNotConnectedError
 from app.utils.analytics_calculations import (
     Granularity,
     RankOrder,
-    as_aware_utc,
     average_or_none,
     bucket_start,
     calculate_engagement_rate,
     calculate_growth,
+    published_within,
     rank_content,
     sum_or_none,
+)
+from app.utils.insight_calculations import (
+    content_format_breakdown,
+    content_summary,
+    posting_frequency,
+    posting_time_breakdown,
 )
 
 DEFAULT_LOOKBACK_DAYS = 30
@@ -108,6 +121,10 @@ class AnalyticsService:
             media_count=account.media_count,
             reach=metrics.get("reach"),
             impressions=metrics.get("impressions"),
+            # profile_views was deprecated account-wide in Graph API v21 with
+            # no replacement (see ACCOUNT_INSIGHT_METRICS) - this key is
+            # never present in fetched metrics, so profile_visits is always
+            # None, same as impressions above.
             profile_visits=metrics.get("profile_views"),
             accounts_reached=metrics.get("reach"),
             accounts_engaged=metrics.get("accounts_engaged"),
@@ -156,27 +173,11 @@ class AnalyticsService:
         if media_analytics is None:
             media_analytics = self._compute_media_analytics(account.id)
         if days is not None:
-            media_analytics = self._published_within(media_analytics, days)
+            since = datetime.now(timezone.utc) - timedelta(days=days)
+            media_analytics = published_within(media_analytics, since)
         key_func = _METRIC_EXTRACTORS.get(metric, _METRIC_EXTRACTORS["engagement_rate"])
         ranked = rank_content(media_analytics, key_func, order, limit)
         return TopContentResponse(metric=metric, order=order, items=ranked)
-
-    @staticmethod
-    def _published_within(
-        media_analytics: list[MediaAnalyticsResponse], days: int
-    ) -> list[MediaAnalyticsResponse]:
-        """Keep only posts published in the last N days.
-
-        Posts with no recorded publish time are excluded rather than
-        assumed recent - including them would silently misattribute
-        undated content to whatever window the user asked about.
-        """
-        since = datetime.now(timezone.utc) - timedelta(days=days)
-        return [
-            item
-            for item in media_analytics
-            if item.posted_at is not None and as_aware_utc(item.posted_at) >= since
-        ]
 
     def get_trends(
         self,
@@ -229,6 +230,72 @@ class AnalyticsService:
             recent_trend=trends.points,
         )
 
+    def get_export_analytics(
+        self,
+        user_id: int,
+        days: int,
+        granularity: Granularity,
+        ranked_limit: int = 5,
+        inventory_limit: int = 500,
+    ) -> WindowAnalytics:
+        """Return every analytics section the full-report export needs for
+        one window.
+
+        Resolves the account and computes media analytics exactly once,
+        then shares both across every sub-section - the same reason
+        get_dashboard does it (see that method's docstring); without it,
+        the export would repeat the same account lookup and media+insight
+        fetch five times over.
+
+        Breakdowns here are computed over only the posts published inside
+        the window, unlike the same-named breakdowns the AI services send
+        to Gemini (see app/services/ai_context.py), which use an unfiltered
+        recent-posts sample. The two can legitimately disagree - that's
+        exactly what the export's methodology section exists to surface.
+        """
+        account = self._get_connected_account(user_id)
+        media_analytics = self._compute_media_analytics(account.id)
+
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        window_media = published_within(media_analytics, since)
+        excluded_undated_count = sum(1 for item in media_analytics if item.posted_at is None)
+
+        account_analytics = self._account_analytics(account, days, media_analytics)
+        trends = self._trends(account, granularity, days, media_analytics)
+        top_content = self._top_content(
+            account, ranked_limit, "engagement_rate", "top", media_analytics, days=days
+        )
+        bottom_content = self._top_content(
+            account, ranked_limit, "engagement_rate", "bottom", media_analytics, days=days
+        )
+
+        inventory = ContentInventory(
+            items=window_media[:inventory_limit],
+            total_in_window=len(window_media),
+            truncated=len(window_media) > inventory_limit,
+            limit=inventory_limit,
+            excluded_undated_count=excluded_undated_count,
+        )
+
+        breakdowns = WindowBreakdowns(
+            posting_time=posting_time_breakdown(window_media),
+            content_format=content_format_breakdown(window_media),
+            posting_frequency=posting_frequency(window_media, window_days=days),
+            content_summary=ContentSummary(**content_summary(window_media)),
+            sample=SampleProvenance(
+                limit=len(window_media), returned=len(window_media), window_filtered=True
+            ),
+        )
+
+        return WindowAnalytics(
+            account=account_analytics,
+            trends=trends,
+            inventory=inventory,
+            top_content=top_content,
+            bottom_content=bottom_content,
+            breakdowns=breakdowns,
+        )
+
     def _compute_follower_growth(
         self, instagram_account_id: int, since: datetime
     ) -> GrowthMetric | None:
@@ -279,7 +346,7 @@ class AnalyticsService:
             likes=media.like_count,
             comments=media.comments_count,
             shares=metrics.get("shares"),
-            saves=metrics.get("saved"),
+            saves=metrics.get("saves"),
             reach=reach,
             impressions=metrics.get("impressions"),
             engagement_rate=engagement_rate,
@@ -308,11 +375,7 @@ class AnalyticsService:
         # Reuses the already-computed analytics rather than re-reading media
         # and insights from the database; engagement_rate on each item is
         # derived from exactly the same inputs this used to recompute.
-        media_in_window = [
-            item
-            for item in media_analytics
-            if item.posted_at is not None and as_aware_utc(item.posted_at) >= since
-        ]
+        media_in_window = published_within(media_analytics, since)
 
         buckets: dict = defaultdict(
             lambda: {
@@ -366,7 +429,7 @@ class AnalyticsService:
         likes = media.like_count or 0
         comments = media.comments_count or 0
         shares = (insight.metrics.get("shares") or 0) if insight else 0
-        saves = (insight.metrics.get("saved") or 0) if insight else 0
+        saves = (insight.metrics.get("saves") or 0) if insight else 0
         return likes + comments + shares + saves
 
     def _get_connected_account(self, user_id: int) -> InstagramAccount:

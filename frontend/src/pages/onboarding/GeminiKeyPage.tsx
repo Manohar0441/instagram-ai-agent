@@ -4,8 +4,6 @@ import { useNavigate } from "react-router-dom";
 
 import { setKey } from "../../api/ai";
 import { ApiError } from "../../api/client";
-import "../../components/layout/layout.css";
-import { Button, Callout, Field } from "../../components/ui";
 import { AI_KEY_QUERY } from "../../onboarding/useOnboardingStatus";
 
 export function GeminiKeyPage() {
@@ -37,62 +35,101 @@ export function GeminiKeyPage() {
   }
 
   return (
-    <div className="centered">
-      <div className="centered__panel centered__panel--wide glass">
-        <div className="centered__brand">Instalysis</div>
+    <div className="swiss-layout">
+      {/* LEFT COLUMN: Structural Sidebar */}
+      <aside className="swiss-sidebar">
+        <div className="swiss-sidebar-top">
+          <div className="swiss-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 15L7.5 5H11.5L7 15H3Z" fill="#da291c"/>
+              <path d="M11 19L15.5 9H19.5L15 19H11Z" fill="#da291c"/>
+              <rect x="6" y="12" width="12" height="2.5" fill="#da291c"/>
+            </svg>
+            Instalysis.
+          </div>
+        </div>
 
-        <div className="stack-lg">
-          <div>
-            <div className="step-marker">Step 1 of 2</div>
-            <h1>Add your Gemini API key</h1>
-            <p className="muted" style={{ marginTop: "var(--space-4)" }}>
+        <div className="swiss-crosshair-container">
+          <div className="crosshair-line-h"></div>
+          <div className="crosshair-line-v"></div>
+          <div className="crosshair-node"></div>
+        </div>
+
+        <div className="swiss-sidebar-bottom">
+          <p className="sidebar-quote">
+            <strong>Bring your own key.</strong>
+            <br />
+            Your analytics, billed to your account.
+          </p>
+        </div>
+      </aside>
+
+      {/* RIGHT COLUMN: Main Content */}
+      <main className="swiss-main">
+        <div className="swiss-content">
+          <div className="swiss-header-block">
+            <span className="step-marker">Step 1 of 2</span>
+            <h1 className="swiss-title">Add your Gemini key</h1>
+            <p className="swiss-subtitle">
               Instalysis uses Google Gemini to write insights, recommendations
               and reports from your analytics. The key stays yours — it is
-              encrypted before it is stored and is never shown back to you or
+              encrypted before it is stored and never shown back to you or
               sent anywhere except Google.
             </p>
           </div>
 
-          {error && <Callout tone="error">{error}</Callout>}
-
-          <form className="stack" onSubmit={handleSubmit}>
-            <Field
-              label="Gemini API key"
-              type="password"
-              value={apiKey}
-              required
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="AQ.Ab8…"
-              hint={
-                <>
-                  Create a free key at{" "}
-                  <a
-                    href="https://aistudio.google.com/apikey"
-                    target="_blank"
-                    rel="noreferrer noopener"
-                  >
-                    aistudio.google.com/apikey
-                  </a>
-                  . The free tier is enough to run Instalysis.
-                </>
-              }
-              onChange={(event) => setApiKey(event.target.value)}
-            />
-            <div className="row">
-              <Button type="submit" variant="primary" loading={submitting}>
-                Save and continue
-              </Button>
+          {error && (
+            <div className="swiss-callout swiss-callout--error">
+              <strong>Error:</strong> {error}
             </div>
+          )}
+
+          <form className="swiss-form" onSubmit={handleSubmit}>
+            <div className="swiss-field-group">
+              <label htmlFor="apiKey">Gemini API key</label>
+              <div className="swiss-input-wrapper">
+                <span className="icon-left">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="7.5" cy="15.5" r="5.5"></circle>
+                    <path d="M21 2l-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"></path>
+                  </svg>
+                </span>
+                <input
+                  id="apiKey"
+                  type="password"
+                  value={apiKey}
+                  placeholder="AQ.Ab8…"
+                  autoComplete="off"
+                  spellCheck={false}
+                  required
+                  onChange={(event) => setApiKey(event.target.value)}
+                />
+              </div>
+              <p className="field__hint">
+                Create a free key at{" "}
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer noopener">
+                  aistudio.google.com/apikey
+                </a>
+                . The free tier is enough to run Instalysis.
+              </p>
+            </div>
+
+            <button type="submit" className="swiss-button" disabled={submitting}>
+              <span>{submitting ? "Saving..." : "Save and continue"}</span>
+              <svg className="button-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
           </form>
 
           <div className="rule" style={{ paddingTop: "var(--space-4)" }}>
-            <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+            <p className="muted text-xs">
               You can change or remove this key at any time from Settings.
             </p>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

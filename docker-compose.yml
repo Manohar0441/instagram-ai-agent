@@ -19,13 +19,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  redis:
-    image: redis:7
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
 
-    container_name: instagram-redis
+    container_name: instagram-dynamodb-local
+
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
 
     ports:
-      - "6379:6379"
+      - "8100:8000"
 
 volumes:
   postgres_data:

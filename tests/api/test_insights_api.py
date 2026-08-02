@@ -90,23 +90,23 @@ class TestCaching:
         second = client.get("/api/v1/insights", headers=auth_headers).json()
         assert first == second
 
-    def test_a_redis_outage_still_serves_the_request(
+    def test_a_dynamodb_outage_still_serves_the_request(
         self, client, auth_headers, connected_account, fake_structured_llm, monkeypatch
     ):
-        """Caching is an optimization; losing Redis must degrade to
+        """Caching is an optimization; losing the cache table must degrade to
         regenerating, never to failing."""
-        import redis
+        from botocore.exceptions import ClientError
 
         from app.utils import cache
 
-        class BrokenRedis:
-            def get(self, key):
-                raise redis.ConnectionError("down")
+        class BrokenTable:
+            def get_item(self, **kwargs):
+                raise ClientError({"Error": {"Code": "InternalServerError", "Message": "down"}}, "GetItem")
 
-            def setex(self, key, ttl, value):
-                raise redis.ConnectionError("down")
+            def put_item(self, **kwargs):
+                raise ClientError({"Error": {"Code": "InternalServerError", "Message": "down"}}, "PutItem")
 
-        monkeypatch.setattr(cache, "get_redis_client", lambda: BrokenRedis())
+        monkeypatch.setattr(cache, "get_cache_table", lambda: BrokenTable())
 
         assert client.get("/api/v1/insights", headers=auth_headers).status_code == 200
         assert client.get("/api/v1/insights", headers=auth_headers).status_code == 200

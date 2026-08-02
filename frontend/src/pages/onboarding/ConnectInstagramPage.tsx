@@ -4,8 +4,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { ApiError } from "../../api/client";
 import { getConnectUrl } from "../../api/instagram";
-import "../../components/layout/layout.css";
-import { Button, Callout } from "../../components/ui";
 import { INSTAGRAM_PROFILE_QUERY } from "../../onboarding/useOnboardingStatus";
 
 /* The backend sends stable codes rather than prose so the copy lives here,
@@ -76,42 +74,80 @@ export function ConnectInstagramPage() {
   }
 
   return (
-    <div className="centered">
-      <div className="centered__panel centered__panel--wide glass">
-        <div className="centered__brand">Instalysis</div>
+    <div className="swiss-layout">
+      {/* LEFT COLUMN: Structural Sidebar */}
+      <aside className="swiss-sidebar">
+        <div className="swiss-sidebar-top">
+          <div className="swiss-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 15L7.5 5H11.5L7 15H3Z" fill="#da291c"/>
+              <path d="M11 19L15.5 9H19.5L15 19H11Z" fill="#da291c"/>
+              <rect x="6" y="12" width="12" height="2.5" fill="#da291c"/>
+            </svg>
+            Instalysis.
+          </div>
+        </div>
 
-        <div className="stack-lg">
-          <div>
-            <div className="step-marker">Step 2 of 2</div>
-            <h1>Connect your Instagram account</h1>
-            <p className="muted" style={{ marginTop: "var(--space-4)" }}>
+        <div className="swiss-crosshair-container">
+          <div className="crosshair-line-h"></div>
+          <div className="crosshair-line-v"></div>
+          <div className="crosshair-node"></div>
+        </div>
+
+        <div className="swiss-sidebar-bottom">
+          <p className="sidebar-quote">
+            <strong>One last step.</strong>
+            <br />
+            Connect the account you want to analyse.
+          </p>
+        </div>
+      </aside>
+
+      {/* RIGHT COLUMN: Main Content */}
+      <main className="swiss-main">
+        <div className="swiss-content">
+          <div className="swiss-header-block">
+            <span className="step-marker">Step 2 of 2</span>
+            <h1 className="swiss-title">Connect Instagram</h1>
+            <p className="swiss-subtitle">
               Instalysis reads your posts and insights through the Instagram
-              Graph API. You will be sent to Meta to approve access, then
-              returned here.
+              API. You will be sent to Meta to approve access, then returned
+              here.
             </p>
           </div>
 
-          {error && <Callout tone="error">{error}</Callout>}
+          {error && (
+            <div className="swiss-callout swiss-callout--error">
+              <strong>Error:</strong> {error}
+            </div>
+          )}
 
-          <div className="stack">
-            <Button variant="primary" onClick={handleConnect} loading={starting}>
-              Continue to Instagram
-            </Button>
-          </div>
+          <button
+            type="button"
+            className="swiss-button"
+            onClick={handleConnect}
+            disabled={starting}
+          >
+            <span>{starting ? "Redirecting..." : "Continue to Instagram"}</span>
+            <svg className="button-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
 
           <div className="rule stack-sm" style={{ paddingTop: "var(--space-4)" }}>
-            <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+            <p className="muted text-xs">
               You need an Instagram <strong>Business</strong> or{" "}
               <strong>Creator</strong> account linked to a Facebook Page.
               Personal accounts cannot expose insights through the API.
             </p>
-            <p className="muted" style={{ fontSize: "var(--text-xs)" }}>
+            <p className="muted text-xs">
               Your access token is encrypted before it is stored, and can be
               revoked at any time from Settings.
             </p>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

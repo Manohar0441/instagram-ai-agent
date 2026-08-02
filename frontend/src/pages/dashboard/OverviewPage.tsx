@@ -10,7 +10,7 @@ import { QueryState } from "../../components/QueryState";
 import {
   Button,
   EmptyState,
-  Glass,
+  Panel,
   SegmentedControl,
   SkeletonCards,
   StatCard,
@@ -196,9 +196,9 @@ export function OverviewPage() {
               <section className="stack">
                 <h2>Top performing posts</h2>
                 {dashboard.data && dashboard.data.top_content.length > 0 ? (
-                  <Glass>
+                  <Panel>
                     <MediaTable items={dashboard.data.top_content} />
-                  </Glass>
+                  </Panel>
                 ) : (
                   <EmptyState
                     title="No posts analysed yet"

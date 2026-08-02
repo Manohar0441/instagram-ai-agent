@@ -9,7 +9,11 @@ from app.api.health import router as health_router
 from app.api.v1.router import api_router
 from app.core.exception_handlers import unhandled_exception_handler
 from app.core.logging import configure_logging
-from app.core.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
+from app.core.middleware import (
+    OriginVerifyMiddleware,
+    RequestLoggingMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.core.rate_limit import limiter
 from app.core.settings import settings
 
@@ -31,7 +35,9 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 
 # Middleware executes in the reverse order it's added (the last one added
 # wraps everything else), so this order gives, outermost to innermost:
-# RequestLogging -> SecurityHeaders -> CORS -> SlowAPI -> routing.
+# RequestLogging -> OriginVerify -> SecurityHeaders -> CORS -> SlowAPI -> routing.
+# OriginVerify sits inside RequestLogging (not outermost) so a direct,
+# CloudFront-bypassing call still gets logged before being rejected.
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -41,6 +47,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(OriginVerifyMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)

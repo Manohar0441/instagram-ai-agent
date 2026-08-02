@@ -53,7 +53,7 @@ export function Sparkline({ values }: { values: (number | null)[] }) {
           key={segment}
           d={segment}
           fill="none"
-          stroke="var(--color-accent)"
+          stroke="var(--accent)"
           strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"

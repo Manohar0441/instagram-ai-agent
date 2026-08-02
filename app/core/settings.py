@@ -33,8 +33,20 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str | None = None
     POSTGRES_DB: str | None = None
 
-    REDIS_URL: str
+    DYNAMODB_CACHE_TABLE: str = "instalysis-cache"
+    # Left unset in production so boto3 talks to the real AWS endpoint;
+    # local dev/tests point this at a local DynamoDB instance instead.
+    DYNAMODB_ENDPOINT_URL: str | None = None
     CACHE_TTL_SECONDS: int = 900
+
+    # Not read by the app itself - boto3 picks these up directly from the
+    # environment. Declared here only so local dev can put dummy credentials
+    # for DynamoDB Local in the same .env file without pydantic rejecting
+    # them as unknown keys. In production, Lambda's execution role supplies
+    # real credentials automatically; these stay unset there.
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
+    AWS_DEFAULT_REGION: str | None = None
 
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
@@ -44,6 +56,11 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-2.5-flash"
     GEMINI_TEMPERATURE: float = 0.2
+    # Without a timeout, a flapping provider can retry internally for an
+    # unbounded amount of wall-clock time (see build_llm). This bounds a
+    # single call; a request making several sequential calls (e.g. the
+    # full-report export) is bounded by a small multiple of this instead.
+    GEMINI_TIMEOUT_SECONDS: int = 45
 
     # Caps how many agent <-> tool round-trips a single /ai/chat request may
     # take before LangGraph aborts the run, guarding against runaway loops.
@@ -60,6 +77,11 @@ class Settings(BaseSettings):
 
     META_ACCESS_TOKEN: str | None = None
 
+    # Shared secret CloudFront attaches to every request as a custom origin
+    # header, checked by OriginVerifyMiddleware - see its docstring. Unset
+    # locally, where nothing sits in front of the app.
+    CLOUDFRONT_ORIGIN_VERIFY_SECRET: str | None = None
+
     # Comma-separated list of allowed browser origins for CORS.
     CORS_ALLOWED_ORIGINS: str = "http://localhost:3000"
 
@@ -69,10 +91,15 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
 
     # slowapi rate-limit strings, e.g. "100/minute". STRICT applies to
-    # expensive AI-backed endpoints, AUTH to login/register.
+    # expensive AI-backed endpoints, AUTH to login/register. EXPORT is
+    # deliberately much tighter than STRICT: the full-report export makes 3
+    # sequential Gemini calls per request, so STRICT's 10/minute would let
+    # one user drive up to 30 Gemini calls/minute through this endpoint
+    # alone - well above the free tier's ~10 RPM.
     RATE_LIMIT_DEFAULT: str = "100/minute"
     RATE_LIMIT_STRICT: str = "10/minute"
     RATE_LIMIT_AUTH: str = "5/minute"
+    RATE_LIMIT_EXPORT: str = "3/minute"
 
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: Literal["json", "text"] = "json"

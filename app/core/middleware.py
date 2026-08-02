@@ -6,6 +6,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.core.settings import settings
+
 request_logger = logging.getLogger("app.request")
 
 # Health/metrics endpoints are typically polled every few seconds by
@@ -63,3 +65,27 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         for header, value in self._HEADERS.items():
             response.headers.setdefault(header, value)
         return response
+
+
+class OriginVerifyMiddleware(BaseHTTPMiddleware):
+    """Reject requests that didn't come through CloudFront.
+
+    The Lambda Function URL behind CloudFront must use AuthType=NONE: IAM/
+    Origin Access Control signing requires the caller to precompute a
+    SHA256 hash of the request body for every POST/PUT/PATCH, which no
+    ordinary browser client can do, and Lambda function URLs reject
+    unsigned payloads outright - so OAC alone cannot front a normal web
+    app's write endpoints. CloudFront is instead configured to attach a
+    custom header carrying a shared secret to every request it forwards;
+    anything reaching this Lambda without it - i.e. a direct call to the
+    function URL, bypassing CloudFront - is rejected here.
+
+    A no-op when CLOUDFRONT_ORIGIN_VERIFY_SECRET is unset, which is the
+    case for local dev/tests, since nothing sits in front of the app there.
+    """
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        secret = settings.CLOUDFRONT_ORIGIN_VERIFY_SECRET
+        if secret and request.headers.get("x-origin-verify") != secret:
+            return Response(status_code=403, content="Forbidden")
+        return await call_next(request)

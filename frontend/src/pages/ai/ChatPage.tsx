@@ -6,8 +6,7 @@ import { chat } from "../../api/ai";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Markdown } from "../../components/Markdown";
 import { ApiErrorState } from "../../components/QueryState";
-import { Badge, Button, Glass } from "../../components/ui";
-import "./ai.css";
+import { Badge, Button } from "../../components/ui";
 
 interface Turn {
   id: string;
@@ -150,7 +149,7 @@ export function ChatPage() {
                   <button
                     key={suggestion}
                     type="button"
-                    className="chat__suggestion glass glass-interactive"
+                    className="chat__suggestion"
                     onClick={() => send(suggestion)}
                   >
                     {suggestion}
@@ -178,13 +177,13 @@ export function ChatPage() {
                   </time>
                 </div>
 
-                <Glass className="chat__bubble" strong={turn.role === "agent"}>
+                <div className="chat__bubble">
                   {turn.role === "agent" ? (
                     <Markdown>{turn.text}</Markdown>
                   ) : (
                     <p className="chat__text">{turn.text}</p>
                   )}
-                </Glass>
+                </div>
 
                 {turn.role === "agent" && (
                   <div className="chat__actions">
@@ -213,13 +212,13 @@ export function ChatPage() {
               <div className="chat__meta">
                 <span className="chat__role">Instalysis</span>
               </div>
-              <Glass className="chat__bubble" strong>
+              <div className="chat__bubble">
                 <span className="typing" aria-label="Thinking">
                   <span />
                   <span />
                   <span />
                 </span>
-              </Glass>
+              </div>
             </motion.div>
           )}
 
@@ -232,7 +231,7 @@ export function ChatPage() {
           </div>
         )}
 
-        <form className="chat__composer glass glass-strong" onSubmit={handleSubmit}>
+        <form className="chat__composer" onSubmit={handleSubmit}>
           <label className="visually-hidden" htmlFor="chat-message">
             Your question
           </label>

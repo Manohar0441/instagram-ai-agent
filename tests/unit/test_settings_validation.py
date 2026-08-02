@@ -14,7 +14,6 @@ VALID = {
     "APP_NAME": "Test App",
     "APP_VERSION": "1.0.0",
     "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/test",
-    "REDIS_URL": "redis://localhost:6379",
     "JWT_SECRET_KEY": "a" * 64,
     "TOKEN_ENCRYPTION_KEY": "cX7aqLayA2jfaLdKAvzVWC0TirwwWbcVPkiKTwAkgE5=",
     "CORS_ALLOWED_ORIGINS": "https://app.example.com",

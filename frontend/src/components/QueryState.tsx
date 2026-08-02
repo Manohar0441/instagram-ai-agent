@@ -56,9 +56,16 @@ export function ApiErrorState({ error }: { error: unknown }) {
   }
 
   if (error.status === 429) {
+    // Two different things return 429: our own per-endpoint throttle
+    // (whose detail is a generic "Request failed..." string, since slowapi's
+    // handler doesn't send one the client recognises) and Gemini's own quota
+    // limit (which does have a specific, already user-facing detail).
+    const hasSpecificReason = !error.detail.startsWith("Request failed with status");
     return (
       <Callout tone="error" title="Slow down a moment">
-        AI endpoints are limited to 10 requests a minute. Try again shortly.
+        {hasSpecificReason
+          ? error.detail
+          : "This is limited to a few requests a minute. Try again shortly."}
       </Callout>
     );
   }

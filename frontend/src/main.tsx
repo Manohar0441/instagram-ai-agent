@@ -5,10 +5,9 @@ import { RouterProvider } from "react-router-dom";
 
 import { ApiError } from "./api/client";
 import { AuthProvider } from "./auth/AuthContext";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { router } from "./router";
-import "./styles/tokens.css";
-import "./styles/base.css";
-import "./styles/grid.css";
+import "./styles/swiss.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,10 +26,12 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

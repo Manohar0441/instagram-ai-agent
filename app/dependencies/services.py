@@ -1,5 +1,4 @@
 from fastapi import Depends
-from rq import Queue
 
 from app.core.settings import settings
 from app.dependencies.repositories import (
@@ -10,7 +9,6 @@ from app.dependencies.repositories import (
     get_user_repository,
 )
 from app.integrations.instagram_client import InstagramGraphClient
-from app.integrations.task_queue import get_queue
 from app.repositories.account_insight_repository import AccountInsightRepository
 from app.repositories.instagram_account_repository import InstagramAccountRepository
 from app.repositories.instagram_media_repository import InstagramMediaRepository
@@ -20,9 +18,9 @@ from app.services.ai_credential_service import AICredentialService
 from app.services.ai_service import AIService
 from app.services.analytics_service import AnalyticsService
 from app.services.auth_service import AuthService
+from app.services.export_service import FullReportExportService
 from app.services.insights_service import InsightsService
 from app.services.instagram_service import InstagramService
-from app.services.job_service import JobService
 from app.services.recommendation_service import RecommendationService
 from app.services.report_service import ReportService
 from app.services.user_service import UserService
@@ -134,8 +132,18 @@ def get_report_service(
     return ReportService(analytics_service, credential_service)
 
 
-def get_job_service(
-    queue: Queue = Depends(get_queue),
-) -> JobService:
-    """Provide a job service with its task queue dependency."""
-    return JobService(queue)
+def get_full_report_export_service(
+    analytics_service: AnalyticsService = Depends(get_analytics_service),
+    insights_service: InsightsService = Depends(get_insights_service),
+    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+    report_service: ReportService = Depends(get_report_service),
+) -> FullReportExportService:
+    """Provide a full-report export service composed from the analytics and AI services.
+
+    FastAPI resolves each Depends() once per request, so analytics_service
+    here is the same instance the three AI services below already share -
+    no duplicated repositories, no second database session.
+    """
+    return FullReportExportService(
+        analytics_service, insights_service, recommendation_service, report_service
+    )

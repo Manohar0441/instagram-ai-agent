@@ -59,3 +59,17 @@ def posting_frequency(media_items: list[MediaAnalyticsResponse], window_days: in
         "window_days": window_days,
         "posts_per_week": posts_per_week,
     }
+
+
+def content_summary(media_items: list[MediaAnalyticsResponse]) -> dict[str, Any]:
+    """Aggregate post count, average engagement, and totals across a sample."""
+    if not media_items:
+        return {"post_count": 0}
+
+    rates = [item.engagement_rate for item in media_items if item.engagement_rate is not None]
+    return {
+        "post_count": len(media_items),
+        "average_engagement_rate": round(sum(rates) / len(rates), 2) if rates else None,
+        "total_likes": sum(item.likes or 0 for item in media_items),
+        "total_comments": sum(item.comments or 0 for item in media_items),
+    }

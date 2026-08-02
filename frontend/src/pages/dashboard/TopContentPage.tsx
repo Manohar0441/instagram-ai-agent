@@ -7,7 +7,7 @@ import { RankBarChart } from "../../components/charts/Chart";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { MediaTable } from "../../components/MediaTable";
 import { QueryState } from "../../components/QueryState";
-import { EmptyState, Glass, SegmentedControl } from "../../components/ui";
+import { EmptyState, Panel, SegmentedControl } from "../../components/ui";
 import { truncate } from "../../lib/format";
 
 const METRIC_OPTIONS = [
@@ -86,9 +86,9 @@ export function TopContentPage() {
 
             <section className="stack">
               <h2>Detail</h2>
-              <Glass>
+              <Panel>
                 <MediaTable items={items} />
-              </Glass>
+              </Panel>
             </section>
           </div>
         )}
