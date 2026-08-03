@@ -14,7 +14,6 @@ import {
   EmptyState,
   Field,
   Panel,
-  Select,
   SegmentedControl,
   SkeletonCards,
   StatCard,
@@ -29,19 +28,19 @@ const PERIOD_OPTIONS = [
 ] as const;
 
 const DEAL_STATUS_OPTIONS = [
-  { value: "", label: "Any deal status" },
+  { value: "", label: "All" },
   { value: "negotiating", label: "Negotiating" },
   { value: "confirmed", label: "Confirmed" },
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
-];
+] as const;
 
 const PAYMENT_STATUS_OPTIONS = [
-  { value: "", label: "Any payment status" },
+  { value: "", label: "All" },
   { value: "unpaid", label: "Unpaid" },
   { value: "partial", label: "Partial" },
   { value: "paid", label: "Paid" },
-];
+] as const;
 
 function errorMessage(error: unknown): string {
   return error instanceof ApiError
@@ -127,7 +126,7 @@ export function DealsPage() {
                   {earnings.data.currencies.map((currency) => (
                     <div key={currency.currency} className="stack">
                       <section className="grid">
-                        <div className="col-3">
+                        <div className="col-6">
                           <StatCard
                             label={`Paid (${currency.currency})`}
                             icon="◎"
@@ -135,7 +134,7 @@ export function DealsPage() {
                             note={`${currency.deals_counted} deal${currency.deals_counted === 1 ? "" : "s"}`}
                           />
                         </div>
-                        <div className="col-3">
+                        <div className="col-6">
                           <StatCard
                             label={`Pending (${currency.currency})`}
                             icon="◑"
@@ -174,44 +173,42 @@ export function DealsPage() {
         </section>
 
         <section className="stack">
-          <h2>All deals</h2>
-
-          <Panel className="stack">
-            <div className="grid">
-              <div className="col-3">
-                <Select
-                  label="Deal status"
-                  options={DEAL_STATUS_OPTIONS}
-                  value={dealStatus}
-                  onChange={(event) => setDealStatus(event.target.value as DealStatus | "")}
-                />
-              </div>
-              <div className="col-3">
-                <Select
-                  label="Payment status"
-                  options={PAYMENT_STATUS_OPTIONS}
-                  value={paymentStatus}
-                  onChange={(event) => setPaymentStatus(event.target.value as PaymentStatus | "")}
-                />
-              </div>
-              <div className="col-3">
-                <Field
-                  label="Shoot from"
-                  type="date"
-                  value={shootFrom}
-                  onChange={(event) => setShootFrom(event.target.value)}
-                />
-              </div>
-              <div className="col-3">
-                <Field
-                  label="Shoot to"
-                  type="date"
-                  value={shootTo}
-                  onChange={(event) => setShootTo(event.target.value)}
-                />
-              </div>
+          <div className="row row-wrap" style={{ justifyContent: "space-between" }}>
+            <h2>All deals</h2>
+            <div className="row row-wrap">
+              <SegmentedControl
+                label="Deal status"
+                options={DEAL_STATUS_OPTIONS}
+                value={dealStatus}
+                onChange={setDealStatus}
+              />
+              <SegmentedControl
+                label="Payment status"
+                options={PAYMENT_STATUS_OPTIONS}
+                value={paymentStatus}
+                onChange={setPaymentStatus}
+              />
             </div>
-          </Panel>
+          </div>
+
+          <div className="grid">
+            <div className="col-6">
+              <Field
+                label="Shoot from"
+                type="date"
+                value={shootFrom}
+                onChange={(event) => setShootFrom(event.target.value)}
+              />
+            </div>
+            <div className="col-6">
+              <Field
+                label="Shoot to"
+                type="date"
+                value={shootTo}
+                onChange={(event) => setShootTo(event.target.value)}
+              />
+            </div>
+          </div>
 
           {icsError && <Callout tone="error">{icsError}</Callout>}
           {removeDeal.isError && <Callout tone="error">{errorMessage(removeDeal.error)}</Callout>}
