@@ -95,6 +95,12 @@ jobs:
 
       - name: Run backend tests
         run: pytest -q
+        env:
+          APP_NAME: instalysis-api-test
+          APP_VERSION: "0.0.0-test"
+          DATABASE_URL: "sqlite:///./test.db"
+          JWT_SECRET_KEY: "test-only-secret-do-not-use-in-prod"
+          TOKEN_ENCRYPTION_KEY: "test-only-secret-do-not-use-in-prod"
 
       - name: Build backend Lambda image
         run: |
