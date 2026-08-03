@@ -180,7 +180,7 @@ export function OverviewPage() {
                       }
                     />
                   </div>
-                  <div className="col-4">
+                  <div className="col-8">
                     <TrendChart
                       title="Followers"
                       seriesName="Followers"
