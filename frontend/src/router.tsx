@@ -108,6 +108,18 @@ const SettingsPage = lazy(() =>
     "SettingsPage",
   ),
 );
+const DealsPage = lazy(() =>
+  retryImport(
+    () => import("./pages/deals/DealsPage").then((m) => ({ default: m.DealsPage })),
+    "DealsPage",
+  ),
+);
+const DealFormPage = lazy(() =>
+  retryImport(
+    () => import("./pages/deals/DealFormPage").then((m) => ({ default: m.DealFormPage })),
+    "DealFormPage",
+  ),
+);
 const GeminiKeyPage = lazy(() =>
   retryImport(
     () =>
@@ -166,6 +178,9 @@ export const router = createBrowserRouter([
               { path: "/recommendations", element: lazyRoute(<RecommendationsPage />) },
               { path: "/reports", element: lazyRoute(<ReportsPage />) },
               { path: "/reports/full", element: lazyRoute(<FullReportPage />) },
+              { path: "/deals", element: lazyRoute(<DealsPage />) },
+              { path: "/deals/new", element: lazyRoute(<DealFormPage />) },
+              { path: "/deals/:id/edit", element: lazyRoute(<DealFormPage />) },
             ],
           },
         ],

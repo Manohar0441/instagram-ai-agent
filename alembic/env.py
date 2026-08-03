@@ -9,6 +9,7 @@ from app.database.base import Base
 # Import all models so they are registered with Base.metadata
 from app.models import (  # noqa: F401
     AccountInsight,
+    Deal,
     InstagramAccount,
     InstagramMedia,
     MediaInsight,

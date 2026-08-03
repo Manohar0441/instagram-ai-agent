@@ -1,4 +1,10 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 import { useCallback, useId, useLayoutEffect, useRef } from "react";
 
 import { Sparkline } from "../charts/Sparkline";
@@ -105,6 +111,95 @@ export function Field({ label, hint, error, ...rest }: FieldProps) {
         }
         {...rest}
       />
+      {error && (
+        <span className="field__error" id={errorId} role="alert">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ----------------------------------------------------------- Textarea
+
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string;
+  hint?: ReactNode;
+  error?: string | null;
+}
+
+export function Textarea({ label, hint, error, ...rest }: TextareaProps) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+
+  return (
+    <div className="field">
+      <label className="field__label" htmlFor={id}>
+        {label}
+      </label>
+      {hint && (
+        <span className="field__hint" id={hintId}>
+          {hint}
+        </span>
+      )}
+      <textarea
+        className="field__textarea"
+        id={id}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={
+          [hint ? hintId : "", error ? errorId : ""].filter(Boolean).join(" ") || undefined
+        }
+        {...rest}
+      />
+      {error && (
+        <span className="field__error" id={errorId} role="alert">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- Select
+
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  label: string;
+  hint?: ReactNode;
+  error?: string | null;
+  options: { value: string; label: string }[];
+}
+
+export function Select({ label, hint, error, options, ...rest }: SelectProps) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+
+  return (
+    <div className="field">
+      <label className="field__label" htmlFor={id}>
+        {label}
+      </label>
+      {hint && (
+        <span className="field__hint" id={hintId}>
+          {hint}
+        </span>
+      )}
+      <select
+        className="field__select"
+        id={id}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={
+          [hint ? hintId : "", error ? errorId : ""].filter(Boolean).join(" ") || undefined
+        }
+        {...rest}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
       {error && (
         <span className="field__error" id={errorId} role="alert">
           {error}

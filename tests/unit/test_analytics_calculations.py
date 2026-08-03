@@ -77,6 +77,10 @@ class TestBucketStart:
         moment = datetime(2026, 3, 18, 14, 30, tzinfo=timezone.utc)
         assert bucket_start(moment, "monthly") == date(2026, 3, 1)
 
+    def test_yearly_bucket_snaps_to_first_of_year(self):
+        moment = datetime(2026, 7, 3, 14, 30, tzinfo=timezone.utc)
+        assert bucket_start(moment, "yearly") == date(2026, 1, 1)
+
 
 class TestAggregationHelpers:
     def test_sum_or_none_sums_values(self):

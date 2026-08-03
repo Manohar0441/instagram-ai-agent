@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.database import get_db
 from app.repositories.account_insight_repository import AccountInsightRepository
+from app.repositories.deal_repository import DealRepository
 from app.repositories.instagram_account_repository import InstagramAccountRepository
 from app.repositories.instagram_media_repository import InstagramMediaRepository
 from app.repositories.media_insight_repository import MediaInsightRepository
@@ -40,3 +41,8 @@ def get_account_insight_repository(
 ) -> AccountInsightRepository:
     """Provide an account insight repository backed by the request database session."""
     return AccountInsightRepository(db)
+
+
+def get_deal_repository(db: Session = Depends(get_db)) -> DealRepository:
+    """Provide a deal repository backed by the request database session."""
+    return DealRepository(db)

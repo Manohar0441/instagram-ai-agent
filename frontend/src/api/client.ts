@@ -106,11 +106,15 @@ export async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
-export async function apiFetch<T>(
+/** Runs a request through auth headers, session-expiry retry, and error
+ * translation, returning the raw Response. Shared by apiFetch (JSON body)
+ * and apiFetchFile (binary/file download), so both benefit from the same
+ * silent-refresh behavior. */
+async function authorizedFetch(
   path: string,
   init: RequestInit = {},
   _isRetry = false,
-): Promise<T> {
+): Promise<Response> {
   const token = tokenStorage.get();
   const isForm = init.body instanceof URLSearchParams;
 
@@ -130,7 +134,7 @@ export async function apiFetch<T>(
     if (!_isRetry) {
       const newToken = await refreshAccessToken();
       if (newToken) {
-        return apiFetch<T>(path, init, true);
+        return authorizedFetch(path, init, true);
       }
     }
     tokenStorage.clear();
@@ -142,9 +146,34 @@ export async function apiFetch<T>(
     throw new ApiError(response.status, await readDetail(response));
   }
 
+  return response;
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await authorizedFetch(path, init);
+
   if (response.status === 204) {
     return undefined as T;
   }
 
   return (await response.json()) as T;
+}
+
+function filenameFromContentDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const match = header.match(/filename="?([^";]+)"?/);
+  return match ? match[1] : fallback;
+}
+
+/** Fetches a file (e.g. a .ics download) through the same auth/retry path as apiFetch. */
+export async function apiFetchFile(
+  path: string,
+  fallbackFilename: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await authorizedFetch(path);
+  const filename = filenameFromContentDisposition(
+    response.headers.get("content-disposition"),
+    fallbackFilename,
+  );
+  return { blob: await response.blob(), filename };
 }

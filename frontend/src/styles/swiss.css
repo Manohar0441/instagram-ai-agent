@@ -1003,6 +1003,15 @@ h3{font-size:var(--text-md);}
 .field__input:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--shadow);}
 .field__input:focus{outline:none;transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--accent);}
 .field__input[aria-invalid="true"]{border-color:var(--accent);}
+.field__textarea{width:100%;min-height:96px;padding:var(--space-1) var(--space-2);border:2px solid var(--text);background:var(--surface);font-family:inherit;font-size:1rem;resize:vertical;transition:var(--transition);}
+.field__textarea::placeholder{color:#9a9a9a;}
+.field__textarea:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--shadow);}
+.field__textarea:focus{outline:none;transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--accent);}
+.field__textarea[aria-invalid="true"]{border-color:var(--accent);}
+.field__select{width:100%;height:48px;padding:0 var(--space-2);border:2px solid var(--text);background:var(--surface);color:var(--text);font-family:inherit;font-size:1rem;transition:var(--transition);}
+.field__select:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--shadow);}
+.field__select:focus{outline:none;transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--accent);}
+.field__select[aria-invalid="true"]{border-color:var(--accent);}
 .field__error{font-size:var(--text-xs);color:var(--accent);font-weight:var(--weight-bold);}
 
 /* ------------------------------------------------------------ callout -- */

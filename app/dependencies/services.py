@@ -3,6 +3,7 @@ from fastapi import Depends
 from app.core.settings import settings
 from app.dependencies.repositories import (
     get_account_insight_repository,
+    get_deal_repository,
     get_instagram_account_repository,
     get_instagram_media_repository,
     get_media_insight_repository,
@@ -10,6 +11,7 @@ from app.dependencies.repositories import (
 )
 from app.integrations.instagram_client import InstagramGraphClient
 from app.repositories.account_insight_repository import AccountInsightRepository
+from app.repositories.deal_repository import DealRepository
 from app.repositories.instagram_account_repository import InstagramAccountRepository
 from app.repositories.instagram_media_repository import InstagramMediaRepository
 from app.repositories.media_insight_repository import MediaInsightRepository
@@ -18,6 +20,7 @@ from app.services.ai_credential_service import AICredentialService
 from app.services.ai_service import AIService
 from app.services.analytics_service import AnalyticsService
 from app.services.auth_service import AuthService
+from app.services.deals_service import DealService
 from app.services.export_service import FullReportExportService
 from app.services.insights_service import InsightsService
 from app.services.instagram_service import InstagramService
@@ -130,6 +133,13 @@ def get_report_service(
 ) -> ReportService:
     """Provide a report service with its analytics and credential dependencies."""
     return ReportService(analytics_service, credential_service)
+
+
+def get_deal_service(
+    deal_repository: DealRepository = Depends(get_deal_repository),
+) -> DealService:
+    """Provide a deal service with its repository dependency."""
+    return DealService(deal_repository)
 
 
 def get_full_report_export_service(

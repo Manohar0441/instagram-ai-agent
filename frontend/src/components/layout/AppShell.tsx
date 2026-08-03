@@ -23,6 +23,10 @@ const NAV_GROUPS = [
       { to: "/reports", label: "Reports", badge: "RP" },
     ],
   },
+  {
+    label: "Business",
+    links: [{ to: "/deals", label: "Deals", badge: "DL" }],
+  },
 ];
 
 const COLLAPSE_STORAGE_KEY = "instalysis.nav-collapsed";

@@ -372,3 +372,64 @@ export interface FullReportExportResponse {
   recommendations: RecommendationsSection;
   report: ReportSection;
 }
+
+// ----------------------------------------------------------------- deals
+
+export type DealStatus = "negotiating" | "confirmed" | "completed" | "cancelled";
+export type PaymentStatus = "unpaid" | "partial" | "paid";
+export type EarningsPeriod = "weekly" | "monthly" | "yearly";
+
+export interface DealResponse {
+  id: number;
+  title: string;
+  brand_name: string;
+  description: string | null;
+  deliverables: string | null;
+  deal_status: DealStatus;
+  shoot_at: string | null;
+  payment_amount: number | null;
+  currency: string;
+  payment_status: PaymentStatus;
+  payment_due_date: string | null;
+  work_link: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Same shape as the backend's DealCreate/DealUpdate - a full write payload. */
+export interface DealWriteRequest {
+  title: string;
+  brand_name: string;
+  description: string | null;
+  deliverables: string | null;
+  deal_status: DealStatus;
+  shoot_at: string | null;
+  payment_amount: number | null;
+  currency: string;
+  payment_status: PaymentStatus;
+  payment_due_date: string | null;
+  work_link: string | null;
+  notes: string | null;
+}
+
+export interface EarningsPeriodPoint {
+  period_start: string;
+  paid_total: number;
+  pending_total: number;
+  deals_count: number;
+}
+
+export interface CurrencyEarnings {
+  currency: string;
+  total_paid: number;
+  total_pending: number;
+  deals_counted: number;
+  points: EarningsPeriodPoint[];
+}
+
+export interface EarningsSummaryResponse {
+  period: EarningsPeriod;
+  currencies: CurrencyEarnings[];
+  excluded_undated_count: number;
+}

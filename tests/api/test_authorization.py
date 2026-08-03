@@ -29,6 +29,13 @@ PROTECTED_ENDPOINTS = [
     ("GET", "/api/v1/reports/weekly"),
     ("GET", "/api/v1/reports/monthly"),
     ("GET", "/api/v1/export/full-report"),
+    ("POST", "/api/v1/deals"),
+    ("GET", "/api/v1/deals"),
+    ("GET", "/api/v1/deals/earnings-summary"),
+    ("GET", "/api/v1/deals/1"),
+    ("PUT", "/api/v1/deals/1"),
+    ("DELETE", "/api/v1/deals/1"),
+    ("GET", "/api/v1/deals/1/ics"),
 ]
 
 PUBLIC_ENDPOINTS = [
@@ -97,6 +104,20 @@ class TestNoCrossUserAccess:
         of it, and must be told only that they have no connection."""
         response = client.get(path, headers=other_auth_headers)
         assert response.status_code == 404
+
+    def test_another_users_deal_is_not_reachable(self, client, other_auth_headers, db):
+        from tests.conftest import seed_deal
+
+        deal = seed_deal(db, user_id=1)
+
+        assert client.get(f"/api/v1/deals/{deal.id}", headers=other_auth_headers).status_code == 404
+        assert client.put(
+            f"/api/v1/deals/{deal.id}",
+            headers=other_auth_headers,
+            json={"title": "Hijacked", "brand_name": "Acme"},
+        ).status_code == 404
+        assert client.delete(f"/api/v1/deals/{deal.id}", headers=other_auth_headers).status_code == 404
+        assert client.get(f"/api/v1/deals/{deal.id}/ics", headers=other_auth_headers).status_code == 404
 
 
 class TestUserEnumerationIsNotPossible:

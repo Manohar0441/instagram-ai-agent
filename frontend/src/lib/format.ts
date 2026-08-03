@@ -73,4 +73,15 @@ export function formatMediaType(value: string): string {
     .join(" ");
 }
 
+export function formatCurrency(value: number | null | undefined, currency: string): string {
+  if (value === null || value === undefined) return EM_DASH;
+  try {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(value);
+  } catch {
+    // Intl throws on a currency code it doesn't recognise (e.g. a typo) -
+    // still show the amount rather than an em-dash for a real, known value.
+    return `${currency} ${value}`;
+  }
+}
+
 export { EM_DASH };

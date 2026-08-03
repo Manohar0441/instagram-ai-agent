@@ -7,7 +7,7 @@ from app.schemas.analytics import MediaAnalyticsResponse
 
 T = TypeVar("T")
 
-Granularity = Literal["daily", "weekly", "monthly"]
+Granularity = Literal["daily", "weekly", "monthly", "yearly"]
 RankOrder = Literal["top", "bottom"]
 
 
@@ -82,7 +82,9 @@ def bucket_start(moment: datetime, granularity: Granularity) -> date:
         return day
     if granularity == "weekly":
         return day - timedelta(days=day.weekday())
-    return day.replace(day=1)
+    if granularity == "monthly":
+        return day.replace(day=1)
+    return day.replace(month=1, day=1)
 
 
 def sum_or_none(values: list[int]) -> int | None:

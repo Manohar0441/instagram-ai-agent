@@ -26,6 +26,7 @@ from app.database.base import Base
 from app.dependencies.database import get_db
 from app.main import app
 from app.models.account_insight import AccountInsight
+from app.models.deal import Deal
 from app.models.instagram_account import InstagramAccount
 from app.models.instagram_media import InstagramMedia
 from app.models.media_insight import MediaInsight
@@ -364,6 +365,24 @@ def seed_connected_account(
     ))
     db.commit()
     return account
+
+
+def seed_deal(db, user_id: int, **overrides) -> Deal:
+    """Seed a deal with sensible defaults, overridable per test."""
+    fields = {
+        "title": "Summer Campaign Reel",
+        "brand_name": "Acme Skincare",
+        "deal_status": "confirmed",
+        "payment_amount": 15000,
+        "currency": "INR",
+        "payment_status": "unpaid",
+    }
+    fields.update(overrides)
+    deal = Deal(user_id=user_id, **fields)
+    db.add(deal)
+    db.commit()
+    db.refresh(deal)
+    return deal
 
 
 # ------------------------------------------------------------- fake clients
