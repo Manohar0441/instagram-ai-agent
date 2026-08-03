@@ -1,0 +1,143 @@
+name: Deployment
+
+# Single pipeline for both applications. Every push (any branch) and every
+# PR builds, lints, and tests both the frontend and backend - fast feedback
+# before anything is merged. Deploying to AWS only happens after that same
+# run passes, and only for a direct push to master (not a PR, not any other
+# branch) - see the `if:` guards below.
+#
+# Trade-off of merging two independent CI pipelines into one: a change to
+# just the frontend (or just the backend) now builds/tests BOTH apps rather
+# than only the one that changed. That's the cost of a single deployment
+# gate instead of two independent pipelines.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "app/**"
+      - "tests/**"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - "Dockerfile.lambda"
+      - "pytest.ini"
+      - "frontend/**"
+      - ".github/workflows/deployment.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - "tests/**"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - "Dockerfile.lambda"
+      - "pytest.ini"
+      - "frontend/**"
+  workflow_dispatch: {}
+
+# Cancels a stale run if new commits land on the same branch/PR while it's
+# still running - avoids redundant overlapping runs of this same pipeline.
+concurrency:
+  group: deployment-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write # required for OIDC -> AWS role assumption
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: instalysis-api
+  FUNCTION_NAME: instalysis-api
+  S3_BUCKET: instalysis-frontend-951151047337
+  CLOUDFRONT_DISTRIBUTION_ID: E1FLOQVB4EASVO
+  # The CloudFront domain fronts both the static app and /api/* -> the
+  # frontend never needs a separate origin/CORS setup for the API.
+  VITE_API_BASE_URL: https://d24gbkw5emat7s.cloudfront.net
+  # True only for a direct push to master - a PR, or a push to any other
+  # branch, builds/lints/tests but never touches AWS.
+  IS_DEPLOY: ${{ github.ref == 'refs/heads/master' && github.event_name == 'push' }}
+
+jobs:
+  pipeline:
+    name: Build, Test & Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12" # matches Dockerfile.lambda's runtime
+          cache: "pip"
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend # runs tsc -b (typecheck) then vite build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Run backend tests
+        run: pytest -q
+
+      - name: Build backend Lambda image
+        run: |
+          docker build -f Dockerfile.lambda \
+            --provenance=false --sbom=false \
+            -t instalysis-api:ci .
+
+      - name: Configure AWS credentials
+        if: env.IS_DEPLOY == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::951151047337:role/instalysis-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        if: env.IS_DEPLOY == 'true'
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Deploy backend (push image & update Lambda)
+        if: env.IS_DEPLOY == 'true'
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag instalysis-api:ci "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker tag instalysis-api:ci "$REGISTRY/$ECR_REPOSITORY:latest"
+          docker push "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+          aws lambda update-function-code \
+            --function-name "$FUNCTION_NAME" \
+            --image-uri "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          aws lambda wait function-updated --function-name "$FUNCTION_NAME"
+
+      - name: Deploy frontend (sync to S3 & invalidate CloudFront)
+        if: env.IS_DEPLOY == 'true'
+        working-directory: frontend
+        run: |
+          aws s3 sync dist/ "s3://$S3_BUCKET/" --delete
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/*"
+
+      - name: Deployment complete
+        if: env.IS_DEPLOY == 'true'
+        run: echo "✅ Backend and frontend deployed for ${{ github.sha }}"
