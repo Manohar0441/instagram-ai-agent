@@ -164,7 +164,7 @@ export function OverviewPage() {
 
               {trend.length > 0 && (
                 <section className="grid">
-                  <div className="col-8">
+                  <div className="col-4">
                     <TrendChart
                       title="Reach over time"
                       seriesName="Reach"
@@ -180,7 +180,7 @@ export function OverviewPage() {
                       }
                     />
                   </div>
-                  <div className="col-8">
+                  <div className="col-4">
                     <TrendChart
                       title="Followers"
                       seriesName="Followers"
