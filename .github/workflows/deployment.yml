@@ -108,7 +108,16 @@ jobs:
           docker build -f Dockerfile.lambda \
             --provenance=false --sbom=false \
             -t instalysis-api:ci .
-
+      - name: Debug OIDC token claims
+        if: env.IS_DEPLOY == 'true'
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
+          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          
       - name: Configure AWS credentials
         if: env.IS_DEPLOY == 'true'
         uses: aws-actions/configure-aws-credentials@v4
