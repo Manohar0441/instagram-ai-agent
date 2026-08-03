@@ -58,17 +58,34 @@ a shared-secret header (see below) rather than OAC.
 
 **The trade-off**: HTTP API Gateway has a hard 30-second integration
 timeout that cannot be raised (unlike a Function URL, which supports up to
-15 minutes). `GEMINI_TIMEOUT_SECONDS` is set to `8` in this deployment
-(rather than the code's local-dev default of `45`) specifically so that the
-full-report export's worst case — 3 sequential Gemini calls, each hitting
-its own timeout — stays under 30s (`3 × 8s = 24s`, with headroom). A
-healthy Gemini call normally finishes in a few seconds; a call that's
-merely slow, not hung, could still spuriously time out under this tighter
-budget. If that starts happening in practice, the real fix is fronting
-Lambda with an Application Load Balancer instead (no timeout ceiling this
-low, no payload-hash requirement either) — priced with an hourly base
-charge, unlike API Gateway's pay-per-request model, so it's a deliberate
-cost/latency trade-off, not a drop-in swap.
+15 minutes). `GEMINI_TIMEOUT_SECONDS` is set to `20` in this deployment
+(rather than the code's local-dev default of `45`).
+
+That value replaced an initial `8`, which turned out to be broken rather
+than just tight: `langchain_google_genai`'s client hard-rejects any deadline
+under 10 seconds with an immediate 400 `INVALID_ARGUMENT` ("Manually set
+deadline 8s is too short. Minimum allowed deadline is 10s") — so at `8`,
+every single AI call failed instantly regardless of Gemini's actual
+latency, not just the occasional slow one. `app/services/ai_generation.py`
+now clamps `timeout=max(GEMINI_TIMEOUT_SECONDS, 10)` in `build_llm` as a
+fail-safe against this exact misconfiguration recurring, but the deployed
+env var should still be a sane value on its own, hence `20`.
+
+**Known follow-up risk**: `20` gives chat/insights/recommendations (each a
+single Gemini call) comfortable headroom, but the full-report export runs
+3 *sequential* Gemini calls (`app/services/export_service.py`, one each for
+insights/recommendations/report) with no per-call override — worst case
+`3 × 20s = 60s`, well past API Gateway's 30s cap. The 3 calls have no data
+dependency on each other (each builds its own context straight from
+analytics), so the structurally sound fix is running them concurrently
+(e.g. a thread pool, since they're blocking calls) so wall time is bounded
+by the slowest single call instead of their sum — not done here, flagged
+for whoever picks up the export endpoint next. Until then, if export
+timeouts start showing up in practice, the fallback is the same one noted
+below: front Lambda with an Application Load Balancer instead (no timeout
+ceiling this low, no payload-hash requirement either) — priced with an
+hourly base charge, unlike API Gateway's pay-per-request model, so it's a
+deliberate cost/latency trade-off, not a drop-in swap.
 
 ## 1. Required environment variables
 
@@ -87,7 +104,7 @@ default AWS-managed KMS key — no cost, no extra setup):
 | `DYNAMODB_ENDPOINT_URL`      | **Leave unset** in production so boto3 talks to the real AWS endpoint. |
 | `CORS_ALLOWED_ORIGINS`       | Comma-separated real frontend origin(s) - the CloudFront domain. Must not be `*` in production. |
 | `GOOGLE_API_KEY`             | Required for `/ai/*`, `/insights`, `/recommendations`, `/reports/*`, `/export/*` to function - those endpoints return 503 without it, everything else works fine. |
-| `GEMINI_TIMEOUT_SECONDS`     | Set to `8` in this deployment (not the code default of `45`) - see "Why API Gateway, not a Lambda Function URL" above for why. |
+| `GEMINI_TIMEOUT_SECONDS`     | Set to `20` in this deployment (not the code default of `45`) - see "Why API Gateway, not a Lambda Function URL" above for why, including the known export-endpoint risk at this value. Values under 10 are clamped up in code (`app/services/ai_generation.py`) since Gemini's own client rejects a deadline that low outright. |
 | `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET` / `INSTAGRAM_REDIRECT_URI` | Required for `/instagram/connect` - returns 503 without them. |
 | `CLOUDFRONT_ORIGIN_VERIFY_SECRET` | A random secret CloudFront attaches to every request as a custom origin header; `OriginVerifyMiddleware` rejects anything reaching Lambda without it, since the API Gateway origin has no other access restriction. Generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. |
 
@@ -316,9 +333,44 @@ pg_dump "$DATABASE_URL" -Fc > backup-$(date +%F).dump
   every connected account undecryptable and every user needing to reconnect.
   Back the key up separately, in a secrets manager - never alongside the dump.
 
-## 12. Updating and rolling back
+## 12. CI/CD pipeline
+
+`.github/workflows/deploy-backend.yml` and `deploy-frontend.yml` handle
+deployment automatically - the manual steps in the next section are the
+fallback path (a broken pipeline, a one-off hotfix), not the normal one.
+
+Both workflows follow the same shape:
+
+1. **Every push, on any branch, and every pull request** runs build +
+   test: the backend installs `requirements-dev.txt`, runs the full
+   `pytest` suite, then builds the Lambda image (`Dockerfile.lambda`) to
+   confirm it still builds; the frontend runs `npm run build` (which
+   includes `tsc -b`, so a type error fails the run) and `npm run lint`
+   (oxlint). Nothing is deployed at this stage - it's purely a gate, so a
+   broken feature branch or PR shows red before it can reach master.
+2. **Only a direct push to `master`** (this repo's default branch -
+   confirm with `git remote show origin` if that's ever unclear)
+   additionally deploys: the backend pushes the already-built image to ECR
+   and updates the Lambda function; the frontend syncs its build output to
+   S3 and invalidates CloudFront. A PR *from* a branch into master, or a
+   push to any other branch, never touches AWS - both workflows gate every
+   AWS-touching step behind `if: env.IS_DEPLOY == 'true'`, computed from
+   `github.ref` and `github.event_name`.
+
+There is currently no frontend test suite (no vitest/jest) - `tsc -b` and
+oxlint are what "tested" means for the frontend today; see
+`frontend/package.json`'s `lint`/`build` scripts.
+
+Both workflows can also be triggered manually from the Actions tab
+(`workflow_dispatch`), which still runs on whatever branch is selected and
+still only deploys if that's `master`.
+
+## 13. Updating and rolling back
 
 ### Update
+
+Normally this is just `git push` to `master` and the pipeline above
+handles the rest. The manual path below is the fallback:
 
 ```bash
 git pull
@@ -366,7 +418,7 @@ DATABASE_URL="<neon connection string>" alembic downgrade -1
 - [ ] `/health` returns 200 after deploy
 - [ ] CloudWatch Logs checked for errors in the first few minutes
 
-## 13. Running the tests
+## 14. Running the tests
 
 ```bash
 pip install -r requirements-dev.txt
@@ -379,7 +431,7 @@ server, no AWS, no Meta, no Gemini (a moto-mocked DynamoDB and a fake LLM
 stand in) - so the suite is safe to run anywhere and costs nothing. Run a
 single layer with `pytest -m unit`, `-m integration`, or `-m api`.
 
-## 14. Pre-launch checklist
+## 15. Pre-launch checklist
 
 - [ ] `ENVIRONMENT=production`, `DEBUG=false`
 - [ ] Real `JWT_SECRET_KEY` (≥32 chars, generated fresh — **not** the sample value from `.env.example`, which is public)
@@ -390,7 +442,9 @@ single layer with `pytest -m unit`, `-m integration`, or `-m api`.
 - [ ] Lambda function has no VPC configuration
 - [ ] Lambda execution role scoped to CloudWatch Logs + the one DynamoDB table only
 - [ ] `CLOUDFRONT_ORIGIN_VERIFY_SECRET` set on Lambda and matches the CloudFront origin's custom header exactly - the API Gateway origin has no other access restriction
-- [ ] `GEMINI_TIMEOUT_SECONDS=8` set (not the code default of 45) so the export endpoint's worst case stays under API Gateway's 30s cap
+- [ ] `GEMINI_TIMEOUT_SECONDS=20` set (not the code default of 45, and not below 10 - Gemini's client rejects a lower deadline outright)
+- [ ] `VITE_API_BASE_URL` set to the CloudFront domain **root** (no `/api` suffix) at frontend build time - `frontend/.env.production` holds this; verify it's picked up (`grep VITE_API_BASE_URL frontend/dist/assets/*.js` should show the CloudFront domain, never `localhost`) before every `npm run build` that gets deployed
+- [ ] Known risk, not yet fixed: the full-report export's 3 sequential Gemini calls can exceed API Gateway's 30s cap at `GEMINI_TIMEOUT_SECONDS=20` (worst case `3 × 20s = 60s`) - see "Why API Gateway, not a Lambda Function URL" above
 - [ ] `alembic upgrade head` run against Neon before the first deploy
 - [ ] DynamoDB cache table created with TTL enabled on `expires_at`
 - [ ] `/docs` and `/redoc` are disabled (automatic when `ENVIRONMENT=production`)

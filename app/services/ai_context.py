@@ -28,7 +28,7 @@ from app.schemas.export import (
     SampleProvenance,
 )
 from app.services.analytics_service import AnalyticsService
-from app.utils.analytics_calculations import published_within
+from app.utils.analytics_calculations import published_within, with_ist_posted_at
 from app.utils.insight_calculations import content_format_breakdown, content_summary, posting_frequency, posting_time_breakdown
 
 MEDIA_SAMPLE_LIMIT = 50
@@ -117,10 +117,15 @@ def build_recommendations_context(
     since = datetime.now(timezone.utc) - timedelta(days=days)
     recent_media = published_within(media, since)
 
+    # posted_at is UTC (storage/Graph API timezone); shifted to IST before
+    # it reaches the prompt or the export audit trail below, so both agree
+    # with what a person reading a clock time would expect.
+    top_content_items = [with_ist_posted_at(item) for item in top_content.items]
+
     timing = posting_time_breakdown(media)
     formats = content_format_breakdown(media)
     frequency = posting_frequency(recent_media, window_days=days)
-    top_dump = [item.model_dump(mode="json") for item in top_content.items]
+    top_dump = [item.model_dump(mode="json") for item in top_content_items]
 
     prompt_context = {
         "period_days": days,
@@ -135,7 +140,7 @@ def build_recommendations_context(
         posting_time_breakdown=timing,
         content_format_breakdown=formats,
         posting_frequency=frequency,
-        top_performing_content=top_content.items,
+        top_performing_content=top_content_items,
         sample=SampleProvenance(limit=MEDIA_SAMPLE_LIMIT, returned=len(media), window_filtered=False),
         recent_sample_size=len(recent_media),
     )
@@ -164,6 +169,17 @@ def build_report_context(
     now = datetime.now(timezone.utc)
     period_start = (now - timedelta(days=days)).date()
     period_end = now.date()
+
+    # posted_at is UTC (storage/Graph API timezone); shifted to IST so the
+    # prompt, the export audit trail, and the report response actually
+    # shown to the user (report_service.py reads ctx.top_content /
+    # ctx.underperforming_content directly) all agree on the same time.
+    top_content = top_content.model_copy(
+        update={"items": [with_ist_posted_at(item) for item in top_content.items]}
+    )
+    underperforming_content = underperforming_content.model_copy(
+        update={"items": [with_ist_posted_at(item) for item in underperforming_content.items]}
+    )
 
     trend_dump = [point.model_dump(mode="json") for point in trends.points]
     top_dump = [item.model_dump(mode="json") for item in top_content.items]

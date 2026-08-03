@@ -2,6 +2,7 @@ from langchain_core.tools import BaseTool, tool
 
 from app.services.analytics_service import AnalyticsService
 from app.services.instagram_service import InstagramAccountNotConnectedError
+from app.utils.analytics_calculations import with_ist_posted_at
 
 NOT_CONNECTED_MESSAGE = (
     "No Instagram account is connected for this user. Tell them they need to "
@@ -56,6 +57,10 @@ def build_tools(analytics_service: AnalyticsService, user_id: int) -> list[BaseT
             results = analytics_service.get_media_analytics(user_id, limit=limit, media_type=media_type)
         except InstagramAccountNotConnectedError:
             return NOT_CONNECTED_MESSAGE
+        # posted_at comes back in UTC (storage/Graph API timezone) - shifted
+        # to IST here so the model narrates the time the user would actually
+        # recognize, instead of quoting the UTC digits verbatim.
+        results = [with_ist_posted_at(item) for item in results]
         return f"[{', '.join(item.model_dump_json() for item in results)}]"
 
     @tool
@@ -91,6 +96,7 @@ def build_tools(analytics_service: AnalyticsService, user_id: int) -> list[BaseT
             )
         except InstagramAccountNotConnectedError:
             return NOT_CONNECTED_MESSAGE
+        result = result.model_copy(update={"items": [with_ist_posted_at(item) for item in result.items]})
         return result.model_dump_json()
 
     @tool
@@ -127,6 +133,9 @@ def build_tools(analytics_service: AnalyticsService, user_id: int) -> list[BaseT
             result = analytics_service.get_dashboard(user_id)
         except InstagramAccountNotConnectedError:
             return NOT_CONNECTED_MESSAGE
+        result = result.model_copy(
+            update={"top_content": [with_ist_posted_at(item) for item in result.top_content]}
+        )
         return result.model_dump_json()
 
     return [

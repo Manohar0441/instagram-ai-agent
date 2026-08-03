@@ -8,9 +8,9 @@ from app.core.settings import settings
 from app.dependencies.auth import get_current_user
 from app.dependencies.services import get_auth_service
 from app.models.user import User
-from app.schemas.auth import Token
+from app.schemas.auth import RefreshRequest, Token
 from app.schemas.user import UserResponse
-from app.services.auth_service import AuthService, InvalidCredentialsError
+from app.services.auth_service import AuthService, InvalidCredentialsError, InvalidRefreshTokenError
 
 # There is deliberately no POST /auth/register route. This is a single-user
 # app - the one account is created directly in the database with
@@ -46,14 +46,48 @@ def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     auth_service: AuthServiceDependency,
 ) -> Token:
-    """Authenticate a user and issue a JWT access token."""
+    """Authenticate a user and issue a JWT access + refresh token pair."""
     try:
-        access_token = auth_service.login(
+        access_token, refresh_token = auth_service.login(
             email=form_data.username,
             password=form_data.password,
         )
-        return Token(access_token=access_token)
+        return Token(access_token=access_token, refresh_token=refresh_token)
     except InvalidCredentialsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+
+@router.post(
+    "/refresh",
+    response_model=Token,
+    status_code=status.HTTP_200_OK,
+    summary="Refresh access token",
+    description="Exchange a valid refresh token for a new access + refresh token pair, without re-entering credentials.",
+    operation_id="refreshToken",
+    responses={
+        status.HTTP_200_OK: {
+            "description": "A new token pair was issued."
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Missing, invalid, or expired refresh token - the client must sign in again."
+        },
+    },
+)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def refresh(
+    request: Request,
+    body: RefreshRequest,
+    auth_service: AuthServiceDependency,
+) -> Token:
+    """Exchange a refresh token for a new access + refresh token pair."""
+    try:
+        access_token, refresh_token = auth_service.refresh(body.refresh_token)
+        return Token(access_token=access_token, refresh_token=refresh_token)
+    except InvalidRefreshTokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),

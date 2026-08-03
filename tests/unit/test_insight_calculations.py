@@ -34,15 +34,19 @@ def make_media(media_id="m", media_type="IMAGE", posted_at=None, engagement_rate
 
 class TestPostingTimeBreakdown:
     def test_averages_engagement_by_hour_and_weekday(self):
+        # posted_at is naive here, so as_aware_utc treats it as UTC - grouped
+        # by IST (UTC+5:30), so 09:00 UTC lands in the 14:00 IST bucket and
+        # 18:00 UTC in the 23:00 one. Neither crosses a date boundary, so
+        # the weekday stays Wednesday for the first two.
         items = [
-            # Both on a Wednesday at 09:00.
+            # Both on a Wednesday at 09:00 UTC (14:00 IST).
             make_media(posted_at=datetime(2026, 3, 18, 9, 0), engagement_rate=10.0),
             make_media(posted_at=datetime(2026, 3, 25, 9, 0), engagement_rate=20.0),
             make_media(posted_at=datetime(2026, 3, 19, 18, 0), engagement_rate=5.0),
         ]
         result = posting_time_breakdown(items)
-        assert result["average_engagement_by_hour"][9] == 15.0
-        assert result["average_engagement_by_hour"][18] == 5.0
+        assert result["average_engagement_by_hour"][14] == 15.0
+        assert result["average_engagement_by_hour"][23] == 5.0
         assert result["average_engagement_by_weekday"]["Wednesday"] == 15.0
 
     def test_reports_sample_size(self):

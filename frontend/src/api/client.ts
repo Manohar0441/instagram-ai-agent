@@ -1,9 +1,15 @@
 import { tokenStorage } from "../auth/tokenStorage";
+import type { Token } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-/** Fired when the session itself has expired, so the app can bounce to login. */
+/** Fired when the session itself has expired (refresh also failed), so the
+ * app can bounce to login. */
 export const SESSION_EXPIRED_EVENT = "instalysis:session-expired";
+/** Fired whenever apiFetch silently refreshes the access token, so
+ * AuthContext's React state (and its own expiry timer) stay in sync with
+ * whatever client.ts just wrote to storage. */
+export const TOKEN_REFRESHED_EVENT = "instalysis:token-refreshed";
 
 export class ApiError extends Error {
   // Declared as fields rather than constructor parameter properties: the
@@ -49,7 +55,62 @@ async function readDetail(response: Response): Promise<string> {
   return `Request failed with status ${response.status}.`;
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+// In-flight refresh, shared across every caller that hits an expired access
+// token around the same time - without this, five concurrent requests
+// failing together would fire five separate refresh calls, each racing to
+// overwrite the stored token pair with its own (each individually valid,
+// but only the last write wins, and the other four responses trigger a
+// pointless second retry each).
+let refreshPromise: Promise<string | null> | null = null;
+
+/** Exchange the stored refresh token for a new access + refresh pair.
+ *
+ * Exported so AuthContext can call this directly for its proactive,
+ * before-expiry refresh - apiFetch below uses the same function for its
+ * own reactive, after-a-401 refresh, so both paths always go through the
+ * same dedup/storage logic no matter which one fires first.
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = tokenStorage.getRefresh();
+    if (!refreshToken) return null;
+
+    try {
+      // Not routed through apiFetch: this IS apiFetch's own recovery path
+      // for an expired access token, so calling back into it would recurse.
+      const response = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!response.ok) return null;
+
+      const result = (await response.json()) as Token;
+      tokenStorage.set(result.access_token);
+      tokenStorage.setRefresh(result.refresh_token);
+      window.dispatchEvent(
+        new CustomEvent(TOKEN_REFRESHED_EVENT, { detail: result.access_token }),
+      );
+      return result.access_token;
+    } catch {
+      return null;
+    }
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {},
+  _isRetry = false,
+): Promise<T> {
   const token = tokenStorage.get();
   const isForm = init.body instanceof URLSearchParams;
 
@@ -63,9 +124,17 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   });
 
   if (isSessionExpiry(response)) {
+    // One silent retry with a refreshed token before giving up - this is
+    // what makes a 30-minute access token invisible to the user as long as
+    // the refresh token (weeks) is still valid.
+    if (!_isRetry) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        return apiFetch<T>(path, init, true);
+      }
+    }
     tokenStorage.clear();
     window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
-    // Never retried: there is no refresh token, so a retry fails identically.
     throw new ApiError(401, "Your session has expired. Sign in again.");
   }
 

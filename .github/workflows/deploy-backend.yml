@@ -1,13 +1,28 @@
-name: Deploy backend
+name: Backend CI/CD
 
+# Every push (any branch) and every PR runs the test suite and validates the
+# Lambda image builds - fast feedback before anything is merged. Deploying
+# to AWS only happens after that same run passes, and only for a push to
+# master (not a PR, and not any other branch) - see the `if:` guards below.
 on:
   push:
-    branches: [main]
+    branches: ["**"]
     paths:
       - "app/**"
+      - "tests/**"
       - "requirements.txt"
+      - "requirements-dev.txt"
       - "Dockerfile.lambda"
+      - "pytest.ini"
       - ".github/workflows/deploy-backend.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - "tests/**"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - "Dockerfile.lambda"
+      - "pytest.ini"
   workflow_dispatch: {}
 
 permissions:
@@ -18,38 +33,64 @@ env:
   AWS_REGION: ap-south-1
   ECR_REPOSITORY: instalysis-api
   FUNCTION_NAME: instalysis-api
+  # True only for a direct push to master - a PR from master, or a push to any
+  # other branch, builds and tests but never touches AWS.
+  IS_DEPLOY: ${{ github.ref == 'refs/heads/master' && github.event_name == 'push' }}
 
 jobs:
-  deploy:
+  build-test-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12" # matches Dockerfile.lambda's runtime
+          cache: "pip"
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run test suite
+        run: pytest -q
+
+      # Validates the image builds correctly on every push/PR, not just on
+      # master - a broken Dockerfile.lambda or dependency change is caught
+      # here regardless of branch. On a master deploy, the tagged image below
+      # reuses this exact build (docker tag, not another build) rather than
+      # rebuilding it.
+      - name: Build the Lambda image
+        run: |
+          docker build -f Dockerfile.lambda \
+            --provenance=false --sbom=false \
+            -t instalysis-api:ci .
+
       - name: Configure AWS credentials
+        if: env.IS_DEPLOY == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::951151047337:role/instalysis-github-actions
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to ECR
+        if: env.IS_DEPLOY == 'true'
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push the Lambda image
+      - name: Tag and push the Lambda image
+        if: env.IS_DEPLOY == 'true'
         env:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # --provenance/--sbom off: Lambda rejects the multi-manifest image
-          # buildx produces by default when attestations are attached.
-          docker build -f Dockerfile.lambda \
-            --provenance=false --sbom=false \
-            -t "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
-            -t "$REGISTRY/$ECR_REPOSITORY:latest" .
+          docker tag instalysis-api:ci "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker tag instalysis-api:ci "$REGISTRY/$ECR_REPOSITORY:latest"
           docker push "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           docker push "$REGISTRY/$ECR_REPOSITORY:latest"
 
       - name: Update the Lambda function
+        if: env.IS_DEPLOY == 'true'
         env:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}

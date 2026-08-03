@@ -2,14 +2,18 @@ import pytest
 
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate
-from app.services.auth_service import AuthService, InvalidCredentialsError
+from app.services.auth_service import (
+    AuthService,
+    InvalidCredentialsError,
+    InvalidRefreshTokenError,
+)
 from app.services.user_service import (
     DuplicateEmailError,
     DuplicateUsernameError,
     UserNotFoundError,
     UserService,
 )
-from app.utils.jwt import decode_access_token
+from app.utils.jwt import create_refresh_token, decode_access_token, decode_refresh_token
 
 pytestmark = pytest.mark.integration
 
@@ -97,7 +101,39 @@ class TestAuthentication:
 
         assert str(wrong_password.value) == str(unknown_email.value)
 
-    def test_login_issues_a_token_for_the_right_user(self, user_service, auth_service):
+    def test_login_issues_a_token_pair_for_the_right_user(self, user_service, auth_service):
         created = user_service.create_user(make_user_data(email="me@example.com"))
-        token = auth_service.login("me@example.com", "supersecret123")
-        assert decode_access_token(token)["sub"] == str(created.id)
+        access_token, refresh_token = auth_service.login("me@example.com", "supersecret123")
+        assert decode_access_token(access_token)["sub"] == str(created.id)
+        assert decode_refresh_token(refresh_token)["sub"] == str(created.id)
+
+    def test_refresh_issues_a_new_token_pair_for_the_right_user(self, user_service, auth_service):
+        created = user_service.create_user(make_user_data(email="me@example.com"))
+        _, refresh_token = auth_service.login("me@example.com", "supersecret123")
+
+        new_access_token, new_refresh_token = auth_service.refresh(refresh_token)
+
+        assert decode_access_token(new_access_token)["sub"] == str(created.id)
+        assert decode_refresh_token(new_refresh_token)["sub"] == str(created.id)
+
+    def test_refresh_rejects_an_access_token(self, user_service, auth_service):
+        """An access token must never work as a refresh token - decode_refresh_token
+        enforces the "type" claim for exactly this reason."""
+        user_service.create_user(make_user_data(email="me@example.com"))
+        access_token, _ = auth_service.login("me@example.com", "supersecret123")
+
+        with pytest.raises(InvalidRefreshTokenError):
+            auth_service.refresh(access_token)
+
+    def test_refresh_rejects_garbage(self, auth_service):
+        with pytest.raises(InvalidRefreshTokenError):
+            auth_service.refresh("not-a-real-token")
+
+    def test_refresh_rejects_a_token_for_a_nonexistent_user(self, auth_service):
+        """Covers the same "user no longer exists" branch get_current_user
+        checks for access tokens - there's no user-deletion feature to
+        exercise it via login/refresh, so the token is built directly."""
+        from app.utils.jwt import create_refresh_token
+
+        with pytest.raises(InvalidRefreshTokenError):
+            auth_service.refresh(create_refresh_token(subject="999999"))

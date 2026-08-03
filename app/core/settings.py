@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    # A long-lived refresh token is what actually keeps a device signed in -
+    # the access token above stays short-lived regardless, refreshed
+    # silently in the background (see app/utils/jwt.py, /auth/refresh).
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     # Google AI Studio API key (free tier) - https://aistudio.google.com/apikey
     GOOGLE_API_KEY: str | None = None
