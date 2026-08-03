@@ -32,6 +32,7 @@ class TestLogin:
         assert response.status_code == 200
         assert response.json()["token_type"] == "bearer"
         assert response.json()["access_token"]
+        assert response.json()["refresh_token"]
 
     def test_rejects_a_wrong_password(self, client, db_user):
         response = client.post(
@@ -45,6 +46,63 @@ class TestLogin:
             "/api/v1/auth/login",
             data={"username": "nobody@example.com", "password": "supersecret123"},
         )
+        assert response.status_code == 401
+
+
+class TestRefresh:
+    def test_issues_a_new_token_pair(self, client, db_user):
+        login = client.post(
+            "/api/v1/auth/login",
+            data={"username": "creator1@example.com", "password": USER_PASSWORD},
+        )
+        refresh_token = login.json()["refresh_token"]
+
+        response = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+
+        assert response.status_code == 200
+        assert response.json()["access_token"]
+        assert response.json()["refresh_token"]
+
+        # The new access token actually works.
+        me = client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {response.json()['access_token']}"},
+        )
+        assert me.status_code == 200
+        assert me.json()["email"] == "creator1@example.com"
+
+    def test_rejects_an_access_token(self, client, db_user):
+        """An access token must never work as a refresh token."""
+        login = client.post(
+            "/api/v1/auth/login",
+            data={"username": "creator1@example.com", "password": USER_PASSWORD},
+        )
+        access_token = login.json()["access_token"]
+
+        response = client.post("/api/v1/auth/refresh", json={"refresh_token": access_token})
+        assert response.status_code == 401
+
+    def test_rejects_garbage(self, client):
+        response = client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": "not-a-real-token"}
+        )
+        assert response.status_code == 401
+
+    def test_rejects_an_expired_refresh_token(self, client, db_user):
+        import jwt as pyjwt
+        from datetime import datetime, timedelta, timezone
+        from app.core.settings import settings
+
+        expired = pyjwt.encode(
+            {
+                "sub": "1",
+                "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+                "type": "refresh",
+            },
+            settings.JWT_SECRET_KEY,
+            algorithm=settings.JWT_ALGORITHM,
+        )
+        response = client.post("/api/v1/auth/refresh", json={"refresh_token": expired})
         assert response.status_code == 401
 
 

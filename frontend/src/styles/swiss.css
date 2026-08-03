@@ -1020,12 +1020,26 @@ h3{font-size:var(--text-md);}
 /* ----------------------------------------------------------- tooltip -- */
 
 .has-tooltip{position:relative;cursor:help;}
-.has-tooltip__bubble{position:absolute;bottom:calc(100% + var(--space-1));left:0;z-index:20;width:max-content;max-width:18rem;padding:var(--space-1) var(--space-2);border:2px solid var(--text);background:var(--text);color:#fff;box-shadow:4px 4px 0 var(--accent);font-size:var(--text-xs);font-weight:var(--weight-regular);text-transform:none;letter-spacing:normal;opacity:0;transform:translateY(4px);pointer-events:none;transition:var(--transition);}
+/* transition is scoped to opacity/transform only (not the shorthand
+   var(--transition), which is `all`) - left is set imperatively by the
+   Tooltip component to keep the bubble on-screen (see components/ui), and
+   letting it transition made the clamp visibly slide into place for ~180ms
+   on every mount/resize instead of applying instantly. Only the show/hide
+   fade should animate. */
+.has-tooltip__bubble{position:absolute;bottom:calc(100% + var(--space-1));left:0;z-index:20;width:max-content;max-width:18rem;padding:var(--space-1) var(--space-2);border:2px solid var(--text);background:var(--text);color:#fff;box-shadow:4px 4px 0 var(--accent);font-size:var(--text-xs);font-weight:var(--weight-regular);text-transform:none;letter-spacing:normal;opacity:0;transform:translateY(4px);pointer-events:none;transition:opacity .18s cubic-bezier(.22,1,.36,1),transform .18s cubic-bezier(.22,1,.36,1);}
 .has-tooltip:hover .has-tooltip__bubble,.has-tooltip:focus-visible .has-tooltip__bubble{opacity:1;transform:none;}
 
 /* --------------------------------------------------------- stat card -- */
 
-.stat-card{display:flex;flex-direction:column;gap:var(--space-1);padding:var(--space-3);min-height:9.5rem;min-width:0;}
+/* height:100% (on top of the min-height floor) is what actually fixes
+   uneven card heights within a row: the grid item wrapping each card
+   (.col-3) already stretches to the row's tallest card by default, but
+   the card itself only filled that stretched space when its own content
+   happened to be tall enough - a card with no delta/sparkline (nothing to
+   fill .stat-card__foot's margin-top:auto push) stayed at its shorter
+   natural height instead, leaving row-mates visibly mismatched and their
+   hard-offset shadows landing at different, inconsistent points. */
+.stat-card{display:flex;flex-direction:column;gap:var(--space-1);padding:var(--space-3);min-height:9.5rem;height:100%;min-width:0;}
 .stat-card__head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-1);min-width:0;}
 /* A flex item's own min-width:auto floor (independent of min-width:0 set
    on any ancestor) is normally the width of its longest unbreakable word -
@@ -1072,6 +1086,13 @@ h3{font-size:var(--text-md);}
 .segmented__option:last-child{border-right:0;}
 .segmented__option[aria-pressed="true"]{background:var(--text);color:#fff;}
 .segmented__option:hover:not([aria-pressed="true"]){background:var(--bg);color:var(--text);}
+
+/* Mobile-only dropdown variant of the same control - see SegmentedControl
+   and the mobile override below that swaps visibility with .segmented.
+   Hidden here so it never renders on desktop/tablet. */
+.segmented-select{display:none;}
+.segmented-select__label{flex-shrink:0;font-size:.7rem;font-weight:var(--weight-black);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted);}
+.segmented-select__input{flex:1;min-width:0;height:44px;padding:0 var(--space-2);border:2px solid var(--text);background:var(--surface);color:var(--text);font-size:var(--text-sm);font-weight:var(--weight-medium);}
 
 /* ------------------------------------------------------------- table -- */
 
@@ -1196,8 +1217,15 @@ h3{font-size:var(--text-md);}
    on both html and body turns each into its own independent scroll
    container - and .nav's position:sticky, which expects exactly one
    scrolling ancestor between it and the viewport, silently stops sticking
-   as a result. html alone is enough to clip horizontal overflow. */
-html{overflow-x:hidden;}
+   as a result. html alone is enough to clip horizontal overflow.
+
+   touch-action:pan-y alongside it because overflow-x:hidden alone is not
+   airtight on mobile Safari/Chrome - elastic overscroll/rubber-banding at
+   the viewport edge can still pan into hidden horizontal overflow via a
+   touch gesture even though it's unreachable by mouse or script. Limiting
+   the root to vertical panning closes that gap without touching pinch-zoom
+   (that's a separate gesture, not covered by pan-y). */
+html{overflow-x:hidden;touch-action:pan-y;}
 
 /* Tooltips: a fluid cap that shrinks the bubble on any viewport narrower
    than 18rem+margins, not just below a breakpoint - min() means this is
@@ -1229,40 +1257,14 @@ html{overflow-x:hidden;}
   .page-header__actions{flex-direction:column;align-items:stretch;}
 
   /* A control with many options (Rankings' 5-metric Metric selector) can
-     still be wider than the screen even full-width. Rather than wrap the
-     pill in half, let it scroll horizontally like the data tables do -
-     min-width:0 is required for a flex child to shrink below its content
-     size at all. */
-  .segmented{max-width:100%;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+     still be wider than the screen even full-width, and horizontal-
+     scrolling a filter buries options rather than showing them - swap to
+     the dropdown variant (SegmentedControl renders both, always) instead
+     of trying to make the pill group itself fit. */
+  .segmented{display:none;}
+  .segmented-select{display:flex;align-items:center;gap:var(--space-2);width:100%;}
 
   /* ------------------------------------------------------- stat cards -- */
-
-  /* Two-up instead of Part 5's full single-column collapse (from the
-     .col-* >=901px rule) - eight stacked cards is a lot of scrolling for
-     what a phone can comfortably show two-to-a-row. Held back to >=375px
-     so the narrowest phones (320px) get the safer single column instead.
-
-     This redefines .grid itself to a real 2-column template rather than
-     giving col-3 a span:6 of the normal 12-column one: a 12-column grid
-     with a 32px gap reserves 11 x 32px = 352px for gutters alone, which
-     is already wider than most phone screens before any card content is
-     considered - every 1fr track collapses to 0 and a spanning item's
-     width becomes nothing but its internal gutters (6 zero-width tracks
-     + 5 internal 32px gaps = 160px), overflowing the container no matter
-     how narrow its actual content is. A genuine 2-column grid has one
-     gutter to reserve, not eleven, so the math works at any phone width.
-     Scoped to col-3 (stat cards only, see StatCard and its skeleton
-     placeholder); every other .col-* used inside a .grid on this
-     breakpoint (chart/table panels) is forced to the full 2 columns so
-     it still reads as one full-width row rather than being clipped to a
-     single narrow column of this template. */
-  @media (min-width:375px){
-    .grid{grid-template-columns:repeat(2,1fr);}
-    .col-3{grid-column:span 1;}
-    .col-1,.col-2,.col-4,.col-5,.col-6,.col-7,.col-8,.col-9,.col-10,.col-11,.col-12{
-      grid-column:span 2;
-    }
-  }
 
   /* The 40px numeral can outgrow a ~150px 2-up card at the top of that
      range; clamp() keeps it legible without a numeric breakpoint ladder. */
@@ -1276,6 +1278,47 @@ html{overflow-x:hidden;}
   /* --------------------------------------------------------------- nav -- */
 
   .nav__utility .button{white-space:nowrap;}
+}
+
+/* ------------------------------------------------------ stat card grid -- */
+
+/* Part 5's .col-* >=901px collapse (above, max-width:900px) drops every
+   grid to a single full-width column below 900px - fine for an 8-card
+   grid at 320px, but at tablet widths (769-900px: a 768-900px iPad/
+   Android tablet in portrait, a large foldable unfolded, etc.) it wastes
+   the available width on one starved column per row instead of the 2-3
+   a screen that size can comfortably hold. This was the actual gap
+   behind "looks fine on a few devices, wrong on a lot of others" - the
+   phone tier above (max-width:768px) and the desktop grid never met in
+   the middle.
+
+   Two tiers, layered mobile-first so the later (wider) one wins in the
+   600-900px overlap: 2-up from 375px (the narrowest phones, <375px,
+   stay single column), 3-up from 600px where a third ~180px+ card still
+   has room to breathe. Each redefines .grid to a genuine N-column
+   template rather than spanning tracks of the normal 12-column one - a
+   12-column grid pays for 11 gutters even fully collapsed, which alone
+   exceeds a phone's width before any card content is considered; a true
+   N-column template only ever pays for N-1.
+
+   Scoped to col-3 (stat cards only - see StatCard and its skeleton
+   placeholder); every other .col-* used inside a .grid in this range
+   (chart/table panels) is forced to the template's full width so it
+   still reads as one full-width row, not clipped to a single track. */
+@media (min-width:375px) and (max-width:900px){
+  .grid{grid-template-columns:repeat(2,1fr);}
+  .col-3{grid-column:span 1;}
+  .col-1,.col-2,.col-4,.col-5,.col-6,.col-7,.col-8,.col-9,.col-10,.col-11,.col-12{
+    grid-column:span 2;
+  }
+}
+
+@media (min-width:600px) and (max-width:900px){
+  .grid{grid-template-columns:repeat(3,1fr);}
+  .col-3{grid-column:span 1;}
+  .col-1,.col-2,.col-4,.col-5,.col-6,.col-7,.col-8,.col-9,.col-10,.col-11,.col-12{
+    grid-column:span 3;
+  }
 }
 
 @media (max-width:900px){

@@ -2,15 +2,20 @@ from collections import defaultdict
 from typing import Any
 
 from app.schemas.analytics import MediaAnalyticsResponse
+from app.utils.analytics_calculations import to_ist
 
 
 def posting_time_breakdown(media_items: list[MediaAnalyticsResponse]) -> dict[str, Any]:
-    """Average engagement rate grouped by hour-of-day and weekday.
+    """Average engagement rate grouped by hour-of-day and weekday, in IST.
 
     A real (if small-sample) statistical summary an LLM can narrate, rather
     than raw timestamps it would have to eyeball itself. sample_size lets
     the prompt (and the model) recognize when there's too little data to
     draw a real conclusion.
+
+    posted_at is stored in UTC (Instagram's Graph API returns it that way);
+    grouped by IST hour/weekday instead so "best time to post" answers land
+    on the hour the user would actually post at, not its UTC equivalent.
     """
     by_hour: dict[int, list[float]] = defaultdict(list)
     by_weekday: dict[str, list[float]] = defaultdict(list)
@@ -18,8 +23,9 @@ def posting_time_breakdown(media_items: list[MediaAnalyticsResponse]) -> dict[st
     for item in media_items:
         if item.posted_at is None or item.engagement_rate is None:
             continue
-        by_hour[item.posted_at.hour].append(item.engagement_rate)
-        by_weekday[item.posted_at.strftime("%A")].append(item.engagement_rate)
+        posted_at_ist = to_ist(item.posted_at)
+        by_hour[posted_at_ist.hour].append(item.engagement_rate)
+        by_weekday[posted_at_ist.strftime("%A")].append(item.engagement_rate)
 
     return {
         "sample_size": sum(len(v) for v in by_hour.values()),

@@ -49,6 +49,32 @@ def as_aware_utc(moment: datetime) -> datetime:
     return moment if moment.tzinfo is not None else moment.replace(tzinfo=timezone.utc)
 
 
+# Instagram's Graph API and this app's database both work in UTC - fine for
+# storage, but wrong for anything a person reads or the AI narrates ("best
+# time to post", a specific post's publish time). Fixed to IST rather than
+# a per-user setting - there's no timezone preference anywhere else in the
+# app to read one from.
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def to_ist(moment: datetime | None) -> datetime | None:
+    """Convert a stored (UTC) timestamp to IST."""
+    if moment is None:
+        return None
+    return as_aware_utc(moment).astimezone(IST)
+
+
+def with_ist_posted_at(item: MediaAnalyticsResponse) -> MediaAnalyticsResponse:
+    """A copy of a media item with posted_at converted to IST.
+
+    A copy, not a mutation in place - callers that hand the original list
+    to more than just an AI prompt/tool output (a plain REST response, a
+    trend bucket computed from the same items) must keep seeing UTC, since
+    only AI-facing surfaces should reason in the user's local time.
+    """
+    return item.model_copy(update={"posted_at": to_ist(item.posted_at)})
+
+
 def bucket_start(moment: datetime, granularity: Granularity) -> date:
     """Return the start-of-bucket date for a timestamp at the given granularity."""
     day = moment.date()

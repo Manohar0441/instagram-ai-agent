@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import { useId } from "react";
+import { useCallback, useId, useLayoutEffect, useRef } from "react";
 
 import { Sparkline } from "../charts/Sparkline";
 
@@ -156,11 +156,65 @@ export function Badge({
 
 // ------------------------------------------------------------ Tooltip
 
+/** Viewport margin the bubble should never cross, in pixels. */
+const TOOLTIP_VIEWPORT_PADDING = 12;
+
 export function Tooltip({ label, children }: { label: string; children: ReactNode }) {
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const bubbleRef = useRef<HTMLSpanElement>(null);
+
+  // The bubble is CSS-anchored to the trigger's left edge (necessary for it
+  // to track the trigger at all), which overflows the viewport whenever the
+  // trigger sits anywhere but the far left - a stat card in a later grid
+  // column, for instance. Measuring on show and nudging back on-screen is
+  // the only way to keep both properties (tracks the trigger, never clips)
+  // at once; a fixed CSS position can only ever have one of them.
+  const clampPosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    const bubble = bubbleRef.current;
+    if (!trigger || !bubble) return;
+
+    bubble.style.left = "0px";
+    const triggerRect = trigger.getBoundingClientRect();
+    const bubbleWidth = bubble.offsetWidth;
+    const viewportWidth = document.documentElement.clientWidth;
+
+    const naturalRight = triggerRect.left + bubbleWidth;
+    const overflowRight = naturalRight - (viewportWidth - TOOLTIP_VIEWPORT_PADDING);
+    const overflowLeft = TOOLTIP_VIEWPORT_PADDING - triggerRect.left;
+
+    if (overflowRight > 0) {
+      bubble.style.left = `${-overflowRight}px`;
+    } else if (overflowLeft > 0) {
+      bubble.style.left = `${overflowLeft}px`;
+    }
+  }, []);
+
+  // The bubble stays mounted (just opacity:0) even when closed, so an
+  // unclamped default position still widens the page's scrollable area -
+  // clamping only on hover/focus left every closed tooltip's off-screen
+  // portion contributing to document.scrollWidth, which mobile browsers
+  // can pan/rubber-band into even though nothing is visibly there. Running
+  // the same clamp on mount and on resize (not just on show) keeps the
+  // bubble's box fully inside the viewport at all times, which is what
+  // actually removes the extra scrollable width rather than just hiding
+  // its symptom on interaction.
+  useLayoutEffect(() => {
+    clampPosition();
+    window.addEventListener("resize", clampPosition);
+    return () => window.removeEventListener("resize", clampPosition);
+  }, [clampPosition]);
+
   return (
-    <span className="has-tooltip" tabIndex={0}>
+    <span
+      ref={triggerRef}
+      className="has-tooltip"
+      tabIndex={0}
+      onMouseEnter={clampPosition}
+      onFocus={clampPosition}
+    >
       {children}
-      <span className="has-tooltip__bubble" role="tooltip">
+      <span ref={bubbleRef} className="has-tooltip__bubble" role="tooltip">
         {label}
       </span>
     </span>
@@ -316,19 +370,49 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
   label: string;
 }) {
+  const id = useId();
+
   return (
-    <div className="segmented" role="group" aria-label={label}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          className="segmented__option"
-          aria-pressed={option.value === value}
-          onClick={() => onChange(option.value)}
+    <>
+      {/* Desktop/tablet: the pill group below. Both markups render always -
+          swiss.css swaps which one is visible by breakpoint (the same
+          pattern AppShell uses for its drawer vs. sidebar nav) so there's
+          no resize-driven remount or layout flash. */}
+      <div className="segmented" role="group" aria-label={label}>
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className="segmented__option"
+            aria-pressed={option.value === value}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Mobile: a native dropdown with a visible title to its left - a
+          five-option pill group like Rankings' Metric selector has no room
+          to sit un-scrolled on a phone, and horizontal-scrolling a filter
+          buries options the pill group otherwise shows all at once. */}
+      <div className="segmented-select">
+        <label className="segmented-select__label" htmlFor={id}>
+          {label}
+        </label>
+        <select
+          id={id}
+          className="segmented-select__input"
+          value={value}
+          onChange={(event) => onChange(event.target.value as T)}
         >
-          {option.label}
-        </button>
-      ))}
-    </div>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
   );
 }
