@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { deleteDeal, downloadDealIcs, getEarningsSummary, listDeals } from "../../api/deals";
 import { ApiError } from "../../api/client";
 import type { DealResponse, DealStatus, EarningsPeriod, PaymentStatus } from "../../api/types";
+import { DealCards } from "../../components/DealCards";
 import { DealsTable } from "../../components/DealsTable";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { ApiErrorState, QueryState } from "../../components/QueryState";
@@ -218,13 +219,27 @@ export function DealsPage() {
           ) : deals.error ? (
             <ApiErrorState error={deals.error} />
           ) : deals.data && deals.data.length > 0 ? (
-            <Panel>
-              <DealsTable
-                items={deals.data}
-                onDownloadIcs={handleDownloadIcs}
-                onDelete={(deal) => removeDeal.mutate(deal)}
-              />
-            </Panel>
+            <>
+              {/* Both render always; CSS swaps which is visible by breakpoint
+                  (same pattern as SegmentedControl's pill row vs. mobile
+                  dropdown) so there's no resize-driven remount. */}
+              <div className="deals-table-view">
+                <Panel>
+                  <DealsTable
+                    items={deals.data}
+                    onDownloadIcs={handleDownloadIcs}
+                    onDelete={(deal) => removeDeal.mutate(deal)}
+                  />
+                </Panel>
+              </div>
+              <div className="deals-card-view">
+                <DealCards
+                  items={deals.data}
+                  onDownloadIcs={handleDownloadIcs}
+                  onDelete={(deal) => removeDeal.mutate(deal)}
+                />
+              </div>
+            </>
           ) : (
             <EmptyState
               title="No deals logged yet"

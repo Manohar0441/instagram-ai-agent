@@ -4,14 +4,14 @@ import type { DealResponse } from "../api/types";
 import { formatCurrency, formatDate, formatDateTime } from "../lib/format";
 import { Badge, Button } from "./ui";
 
-const DEAL_STATUS_VARIANT: Record<DealResponse["deal_status"], "default" | "accent" | "solid"> = {
+export const DEAL_STATUS_VARIANT: Record<DealResponse["deal_status"], "default" | "accent" | "solid"> = {
   negotiating: "default",
   confirmed: "accent",
   completed: "solid",
   cancelled: "default",
 };
 
-const PAYMENT_STATUS_VARIANT: Record<DealResponse["payment_status"], "default" | "accent" | "solid"> = {
+export const PAYMENT_STATUS_VARIANT: Record<DealResponse["payment_status"], "default" | "accent" | "solid"> = {
   unpaid: "default",
   partial: "accent",
   paid: "solid",

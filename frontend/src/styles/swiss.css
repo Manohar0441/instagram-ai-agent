@@ -995,20 +995,25 @@ h3{font-size:var(--text-md);}
 
 /* -------------------------------------------------------------- field -- */
 
-.field{display:flex;flex-direction:column;gap:var(--space-1);}
+.field{display:flex;flex-direction:column;gap:var(--space-1);min-width:0;}
 .field__label{font-size:.8rem;font-weight:var(--weight-black);text-transform:uppercase;letter-spacing:var(--tracking-wide);}
 .field__hint{font-size:var(--text-xs);color:var(--muted);max-width:60ch;}
-.field__input{width:100%;height:48px;padding:0 var(--space-2);border:2px solid var(--text);background:var(--surface);transition:var(--transition);}
+/* min-width:0 overrides flex/grid items' default min-width:auto, which
+   otherwise refuses to shrink below the input's intrinsic content size -
+   a native type="date" input's locale-formatted placeholder + calendar
+   icon is wide enough on some mobile browsers to overflow a narrow
+   column even though width:100% says it shouldn't. */
+.field__input{width:100%;min-width:0;height:48px;padding:0 var(--space-2);border:2px solid var(--text);background:var(--surface);transition:var(--transition);}
 .field__input::placeholder{color:#9a9a9a;}
 .field__input:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--shadow);}
 .field__input:focus{outline:none;transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--accent);}
 .field__input[aria-invalid="true"]{border-color:var(--accent);}
-.field__textarea{width:100%;min-height:96px;padding:var(--space-1) var(--space-2);border:2px solid var(--text);background:var(--surface);font-family:inherit;font-size:1rem;resize:vertical;transition:var(--transition);}
+.field__textarea{width:100%;min-width:0;min-height:96px;padding:var(--space-1) var(--space-2);border:2px solid var(--text);background:var(--surface);font-family:inherit;font-size:1rem;resize:vertical;transition:var(--transition);}
 .field__textarea::placeholder{color:#9a9a9a;}
 .field__textarea:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--shadow);}
 .field__textarea:focus{outline:none;transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--accent);}
 .field__textarea[aria-invalid="true"]{border-color:var(--accent);}
-.field__select{width:100%;height:48px;padding:0 var(--space-2);border:2px solid var(--text);background:var(--surface);color:var(--text);font-family:inherit;font-size:1rem;transition:var(--transition);}
+.field__select{width:100%;min-width:0;height:48px;padding:0 var(--space-2);border:2px solid var(--text);background:var(--surface);color:var(--text);font-family:inherit;font-size:1rem;transition:var(--transition);}
 .field__select:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--shadow);}
 .field__select:focus{outline:none;transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--accent);}
 .field__select[aria-invalid="true"]{border-color:var(--accent);}
@@ -1112,6 +1117,24 @@ h3{font-size:var(--text-md);}
 .data-table tbody tr{transition:var(--transition);}
 .data-table tbody tr:hover{background:var(--bg);}
 .table-scroll{overflow-x:auto;}
+
+/* -------------------------------------------------------- deal cards -- */
+
+/* Desktop/tablet default: table visible, card list hidden. The mobile
+   override in Part 4 swaps this, mirroring .segmented/.segmented-select. */
+.deals-card-view{display:none;}
+
+.deal-card{padding:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);}
+.deal-card[role="button"]{cursor:pointer;}
+.deal-card__head{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-2);}
+.deal-card__heading{min-width:0;}
+.deal-card__title{font-weight:var(--weight-bold);}
+.deal-card__brand{font-size:var(--text-sm);color:var(--muted);}
+.deal-card__badges{display:flex;gap:var(--space-1);flex-wrap:wrap;}
+.deal-card__meta{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-2);font-size:var(--text-sm);color:var(--muted);}
+.deal-card__amount{font-weight:var(--weight-black);color:var(--text);}
+.deal-card__details{display:flex;flex-direction:column;gap:0;padding:var(--space-2) 0;border-top:1px solid var(--line);font-size:var(--text-sm);}
+.deal-card__actions{padding-top:var(--space-1);}
 
 /* -------------------------------------------------------------- chat -- */
 
@@ -1283,6 +1306,15 @@ html{overflow-x:hidden;touch-action:pan-y;}
 
   .detail-row{flex-direction:column;align-items:flex-start;gap:2px;}
   .detail-row dt{min-width:0;}
+
+  /* ------------------------------------------------------ deals list -- */
+
+  /* A data table needs horizontal scroll to fit a phone width, which
+     buries columns instead of showing them - a tap-to-expand card list
+     reads better at this width. Both render always; this just swaps
+     which is visible, same pattern as .segmented/.segmented-select. */
+  .deals-table-view{display:none;}
+  .deals-card-view{display:block;}
 
   /* --------------------------------------------------------------- nav -- */
 
