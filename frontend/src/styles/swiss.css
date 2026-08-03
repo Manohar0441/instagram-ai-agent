@@ -1002,8 +1002,14 @@ h3{font-size:var(--text-md);}
    otherwise refuses to shrink below the input's intrinsic content size -
    a native type="date" input's locale-formatted placeholder + calendar
    icon is wide enough on some mobile browsers to overflow a narrow
-   column even though width:100% says it shouldn't. */
-.field__input{width:100%;min-width:0;height:48px;padding:0 var(--space-2);border:2px solid var(--text);background:var(--surface);transition:var(--transition);}
+   column even though width:100% says it shouldn't.
+   font-size:1rem is load-bearing, not cosmetic - form controls don't
+   inherit the page's font-size from body like normal text does, so
+   without it this fell back to the browser's smaller UA-stylesheet
+   default. iOS Safari auto-zooms the whole viewport on focus whenever
+   the focused control's effective font-size is under 16px, which is
+   exactly the "zooming while typing" this fixes. */
+.field__input{width:100%;min-width:0;height:48px;padding:0 var(--space-2);border:2px solid var(--text);background:var(--surface);font-family:inherit;font-size:1rem;transition:var(--transition);}
 .field__input::placeholder{color:#9a9a9a;}
 .field__input:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--shadow);}
 .field__input:focus{outline:none;transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--accent);}
